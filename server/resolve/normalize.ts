@@ -39,3 +39,6 @@ export function candidateCallsigns(airlineIcao: string, number: string): string[
 export function operatorName(callsign: string): string | undefined {
   return byIcao.get(callsign.slice(0, 3))?.name;
 }
+
+/** Whether an ICAO airline code is in the curated list (3-letter codes outside it are accepted but never paid-looked-up). */
+export const isKnownAirline = (icao: string): boolean => byIcao.has(icao);

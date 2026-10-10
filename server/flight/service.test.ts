@@ -209,4 +209,14 @@ describe('FlightService', () => {
     const b = await fresh.lookup('AAL558');
     expect(b.kind === 'view' && b.view.route.points.map((p) => p.ident)).toEqual(['KAAA', 'WPT2', 'KBBB']);
   });
+
+  it('never refreshes from a paid upstream for unknown airlines, and caps candidates at three', async () => {
+    const asked: string[] = [];
+    const adsb = new AdsbClient({ fetch: (async () => new Response('{"ac":[]}')) as typeof fetch, now: () => NOW_MS });
+    const svc = new FlightService({ store: new FlightStore(), nav: () => nav, adsb, now: () => NOW_MS, refresh: async (cs) => void asked.push(cs) });
+    await svc.lookup('XYZ123');
+    expect(asked).toEqual([]);
+    await svc.lookup('AA999'); // AAL has six regional operators
+    expect(asked).toEqual(['AAL999', 'ENY999', 'PDT999']);
+  });
 });

@@ -58,6 +58,16 @@ describe('AeroApiClient', () => {
     await h.client.flights('AAL558');
     expect(h.calls).toHaveLength(2);
   });
+  it('remembers empty answers longer than real ones', async () => {
+    const h = make(() => ok([]));
+    await h.client.flights('AAL9');
+    h.advance(300_000);
+    await h.client.flights('AAL9');
+    expect(h.calls).toHaveLength(1);
+    h.advance(400_000);
+    await h.client.flights('AAL9');
+    expect(h.calls).toHaveLength(2);
+  });
   it('pauses after a 429 and serves the stale answer', async () => {
     let n = 0;
     const h = make(() => (n++ === 0 ? ok([flight()]) : new Response('{}', { status: 429 })));

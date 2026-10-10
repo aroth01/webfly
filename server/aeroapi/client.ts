@@ -54,6 +54,8 @@ export interface AeroApiOptions {
   baseUrl?: string;
   /** How long one ident's answer is reused. The Personal tier is tightly rate limited, so keep this generous. */
   ttlMs?: number;
+  /** How long an empty answer is reused; longer, since probes for flights that do not exist should not repeat. */
+  emptyTtlMs?: number;
   /** Outbound calls per minute (a safety cap below the tier's limit). */
   perMinute?: number;
   log?: (msg: string) => void;
@@ -72,6 +74,7 @@ export class AeroApiClient {
   private readonly now: () => number;
   private readonly baseUrl: string;
   private readonly ttlMs: number;
+  private readonly emptyTtlMs: number;
   private readonly limiter: RateLimiter;
   private readonly log: (msg: string) => void;
   private readonly cache = new Map<string, { at: number; flights: AeroFlight[] }>();
@@ -82,6 +85,7 @@ export class AeroApiClient {
     this.now = opts.now ?? Date.now;
     this.baseUrl = opts.baseUrl ?? 'https://aeroapi.flightaware.com/aeroapi';
     this.ttlMs = opts.ttlMs ?? 120_000;
+    this.emptyTtlMs = opts.emptyTtlMs ?? 600_000;
     const perMinute = opts.perMinute ?? 8;
     this.limiter = new RateLimiter({ capacity: Math.min(perMinute, 5), perMinute, now: this.now });
     this.log = opts.log ?? (() => {});
@@ -91,7 +95,7 @@ export class AeroApiClient {
     const key = ident.toUpperCase();
     const hit = this.cache.get(key);
     const t = this.now();
-    if (hit && t - hit.at < this.ttlMs) return hit.flights;
+    if (hit && t - hit.at < (hit.flights.length === 0 ? this.emptyTtlMs : this.ttlMs)) return hit.flights;
     if (t < this.pausedUntil || !this.limiter.take('aeroapi')) return hit?.flights ?? [];
     try {
       const res = await this.fetchFn(`${this.baseUrl}/flights/${encodeURIComponent(key)}`, {

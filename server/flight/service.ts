@@ -1,7 +1,7 @@
 import { type NavDb } from '../../navdata/navdb.ts';
 import type { Airport, FlightChoice, FlightView, RoutePoint } from '../../shared/types.ts';
 import type { AdsbClient } from '../live/adsb.ts';
-import { candidateCallsigns, normalizeQuery, operatorName } from '../resolve/normalize.ts';
+import { candidateCallsigns, isKnownAirline, normalizeQuery, operatorName } from '../resolve/normalize.ts';
 import { resolve } from '../resolve/resolve.ts';
 import { decodeRoute, type DecodedRoute } from '../route/decode.ts';
 import type { FlightRow, FlightStore } from '../store/flights.ts';
@@ -67,7 +67,7 @@ export class FlightService {
     let r = resolve(query, this.deps.store, nowSec());
     if (this.deps.refresh && r.kind !== 'error') {
       // Mainline first; try the regional operators only while nothing has matched.
-      const candidates = r.kind === 'none' ? r.candidates : (candidatesFor(query) ?? []);
+      const candidates = refreshCandidates(query);
       for (const cs of candidates) {
         await this.deps.refresh(cs);
         r = resolve(query, this.deps.store, nowSec());
@@ -182,9 +182,17 @@ export class FlightService {
   }
 }
 
-function candidatesFor(query: string): string[] | undefined {
+/** Most callsigns one lookup may refresh from a paid upstream. */
+const MAX_REFRESH_CANDIDATES = 3;
+
+/**
+ * Callsigns worth a paid lookup: only for airlines in the curated list, and at most three, so arbitrary
+ * input like "XYZ123" cannot spend the shared AeroAPI budget.
+ */
+function refreshCandidates(query: string): string[] {
   const n = normalizeQuery(query);
-  return n.ok ? candidateCallsigns(n.airline, n.number) : undefined;
+  if (!n.ok || !isKnownAirline(n.airline)) return [];
+  return candidateCallsigns(n.airline, n.number).slice(0, MAX_REFRESH_CANDIDATES);
 }
 
 function airport(nav: NavDb, id: string | undefined): Airport | undefined {
