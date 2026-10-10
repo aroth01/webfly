@@ -1,0 +1,8 @@
+.remember/
+node_modules/
+dist/
+.env
+.env.*
+*.db
+/data/
+.DS_Store
