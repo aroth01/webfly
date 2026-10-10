@@ -35,3 +35,43 @@ export interface LiveState {
 }
 
 export type Trail = Array<[t: number, lat: number, lon: number, alt: number | null]>;
+
+export interface Airport {
+  icao: string;
+  name: string;
+  lat: number;
+  lon: number;
+}
+
+export interface FlightView {
+  query: string; // what the user typed
+  callsign: string; // "AAL558"
+  gufi?: string;
+  operator?: string;
+  acType?: string;
+  origin?: Airport;
+  dest?: Airport;
+  status: 'filed' | 'active' | 'arrived' | 'unknown';
+  etd?: number; // epoch s UTC
+  atd?: number;
+  eta?: number;
+  route: {
+    source: 'filed' | 'expected' | 'none';
+    text?: string;
+    points: RoutePoint[];
+    partial: boolean;
+    amendedAt?: number;
+  };
+  hex?: string; // ICAO 24-bit transponder address, when known
+  navCycle: string; // "2610"
+  degraded?: 'swim_delayed'; // no SWIM message kept for > 3 min
+}
+
+export interface FlightChoice {
+  query: string;
+  callsign: string;
+  origin?: string;
+  dest?: string;
+  etd?: number;
+  status: string;
+}
