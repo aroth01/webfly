@@ -18,6 +18,13 @@ export class RateLimiter {
     this.now = opts.now ?? Date.now;
   }
 
+  /** Whether `key` has a token left, without taking it. */
+  has(key: string): boolean {
+    const b = this.buckets.get(key);
+    if (!b) return true;
+    return Math.min(this.capacity, b.tokens + (this.now() - b.at) * this.refillPerMs) >= 1;
+  }
+
   /** Take one token for `key`; false means the caller is over the limit. */
   take(key: string): boolean {
     const t = this.now();

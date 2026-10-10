@@ -215,13 +215,16 @@ describe('access control', () => {
     expect((await post(app, { code }, '4.4.4.4')).status).toBe(200); // other IPs unaffected
   });
 
-  it('limits login attempts across all IPs combined', async () => {
-    const { app } = locked();
+  it('caps failed logins across all IPs combined, and honest logins never use that cap up', async () => {
+    const globalLoginLimiter = new RateLimiter({ capacity: 5, perMinute: 5, now: () => NOW_MS });
+    const auth = new SessionAuth({ code, secret: 's', now: () => NOW_MS });
+    const app = createApp({ ...fakeDeps(), auth, globalLoginLimiter, now: () => NOW_MS, trustFlyClientIp: true });
+    for (let i = 0; i < 20; i++) expect((await post(app, { code }, `10.2.0.${i}`)).status).toBe(200); // successes are free
     const statuses: number[] = [];
-    for (let i = 0; i < 24; i++) statuses.push((await post(app, { code: 'guess' }, `10.1.0.${i}`)).status); // one attempt per IP
-    expect(statuses.filter((s) => s === 401)).toHaveLength(20);
-    expect(statuses.slice(20)).toEqual([429, 429, 429, 429]);
-    expect((await post(app, { code }, '10.1.1.1')).status).toBe(429); // even the right code, while the cap is hit
+    for (let i = 0; i < 8; i++) statuses.push((await post(app, { code: 'guess' }, `10.1.0.${i}`)).status); // one failure per IP
+    expect(statuses).toEqual([401, 401, 401, 401, 401, 429, 429, 429]);
+    expect((await post(app, { code }, '10.1.1.1')).status).toBe(429); // locked out of logging in while the cap is hit
+    expect((await app.request('/api/live/AAL558', { headers: { cookie: `webfly_session=${auth.issue()}`, 'fly-client-ip': '10.3.0.1' } })).status).toBe(200); // sessions unaffected
   });
 
   it('logout revokes the session server-side', async () => {

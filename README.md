@@ -34,7 +34,7 @@ the deployment private.
 
 With `ACCESS_CODE` set, `/api/*` (except `/api/health` and `/api/auth`) needs a session: the web app asks for the
 code once and the server sets a signed, HttpOnly, SameSite=Strict cookie (30 days). Wrong guesses are limited to
-5 per minute per IP and 20 per minute overall. Independently, cross-site browser requests are rejected. In production the server refuses to
+5 per minute per IP, and 60 failed attempts per minute overall. Independently, cross-site browser requests are rejected. In production the server refuses to
 start without `ACCESS_CODE` unless `ALLOW_PUBLIC=1`. Changing `ACCESS_CODE` invalidates every session; `DELETE /api/auth` logs one out. Without a code (local dev) the API is open.
 
 ## Deploy (Fly.io)
