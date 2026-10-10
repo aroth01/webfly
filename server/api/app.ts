@@ -1,4 +1,6 @@
 import { Hono, type Context } from 'hono';
+import { compress } from 'hono/compress';
+import { secureHeaders } from 'hono/secure-headers';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { NavDb } from '../../navdata/navdb.ts';
 import { TILE_DEG } from '../../navdata/navdb.ts';
@@ -43,6 +45,8 @@ export function createApp(deps: AppDeps): Hono {
   const limits = deps.limits ?? { api: new RateLimiter(60), nav: new RateLimiter(600) };
   const app = new Hono();
   const api = new Hono();
+  app.use('*', secureHeaders());
+  app.use('*', compress());
 
   api.use('*', async (c, next) => {
     const path = c.req.path;

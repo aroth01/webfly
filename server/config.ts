@@ -11,6 +11,8 @@ export interface Config {
   missingScds: string[];
   swimRecordDir: string | undefined; // write kept SWIM payloads here, for replay
   userAgent: string; // sent to adsb.lol with a contact URL (spec §6.4)
+  webDist: string; // built SPA served by the API server
+  navAutoUpdate: boolean; // build and swap in each new NASR cycle (spec §6.1)
   onFly: boolean;
 }
 
@@ -33,6 +35,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     missingScds,
     swimRecordDir: env.SWIM_RECORD_DIR || undefined,
     userAgent: `WebFly/0.1 (+${contact})`,
+    webDist: env.WEB_DIST ?? 'web/dist',
+    navAutoUpdate: env.NAV_AUTO_UPDATE !== 'false',
     onFly: Boolean(env.FLY_APP_NAME),
   };
 }

@@ -4,9 +4,11 @@
 import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { Context } from 'hono';
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 import { findLatestNavData, loadNavDb } from '../navdata/load.ts';
+import { NavUpdater } from '../navdata/update.ts';
 import { createApp } from './api/app.ts';
+import { mountSpa } from './api/static.ts';
 import { loadConfig } from './config.ts';
 import { HttpAdsbSource } from './live/adsb.ts';
 import { LiveService } from './live/live.ts';
@@ -33,8 +35,11 @@ if (!navPath) {
   console.error(`No nav data in ${config.navDirs.join(', ')}. Run: npm run navdata:build`);
   process.exit(1);
 }
-const nav = loadNavDb(navPath);
+// Swapped in place when a new NASR cycle is built; everything reads it through `() => nav`.
+let nav = loadNavDb(navPath);
 console.log(`nav data ${navPath} (AIRAC ${nav.airac})`);
+const navUpdater = new NavUpdater({ dir: join(config.dataDir, 'nasr'), current: () => nav, swap: (db) => (nav = db) });
+if (config.navAutoUpdate) navUpdater.start();
 
 const flights = new FlightStore(config.flightsDb);
 if (args.has('--seed')) console.log(`seeded ${seedFlights(flights, Date.now())} development flight plans`);
@@ -63,7 +68,8 @@ const resolver = new FlightResolver({ nav: () => nav, flights, live, airlines, s
 const clientIp = (c: Context): string =>
   (config.onFly ? c.req.header('fly-client-ip') : undefined) ?? getConnInfo(c).remote.address ?? 'unknown';
 
-const app = createApp({ resolver, live, nav: () => nav, flights, swim, clientIp });
+const app = createApp({ resolver, live, nav: () => nav, flights, swim, clientIp, navUpdate: () => navUpdater.status });
+if (mountSpa(app, config.webDist)) console.log(`serving the web app from ${config.webDist}`);
 
 const purge = () => {
   const n = flights.purge(Math.floor(Date.now() / 1000) - RETENTION_S);
