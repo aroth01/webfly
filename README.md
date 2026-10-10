@@ -39,6 +39,18 @@ A flight that is airborne right now but has no stored plan resolves through adsb
 
 Environment: `PORT` (8080), `DATA_DIR` (`data`), `FLIGHTS_DB` (`$DATA_DIR/flights.db`), `CONTACT_URL` (sent to adsb.lol in the User-Agent).
 
+## Filed routes from FAA SWIM
+
+Filed routes come from the FAA SWIM SFDPS feed through SCDS (spec §6.2). Without SCDS credentials the app still works: flights resolve through the adsb.lol fallback (expected route).
+
+    npm run swim:replay -- server/swim/fixtures/synthetic --db data/replay.db   # replay recorded payloads
+
+With an SCDS subscription:
+
+    SWIM_ENABLED=true SCDS_URL=tcps://… SCDS_VPN=… SCDS_USERNAME=… SCDS_PASSWORD=… SCDS_QUEUE=… npm start
+
+Set `SWIM_RECORD_DIR=data/swim-recordings` to keep every payload that updated a flight, for replay and test fixtures. `/api/health` reports the connection, kept/dropped messages per minute and reconnects.
+
 ## Visual regression tests
 
     npx playwright install chromium    # once; or point PLAYWRIGHT_CHROMIUM_EXECUTABLE at an installed Chromium

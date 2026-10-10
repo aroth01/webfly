@@ -15,7 +15,10 @@ import { loadAirlines } from './resolve/airlines.ts';
 import { FlightResolver } from './resolve/resolve.ts';
 import { FlightStore } from './store/flights.ts';
 import { seedFlights } from './store/seed.ts';
-import { SWIM_DISABLED } from './swim/status.ts';
+import { fileRecorder, SwimConsumer } from './swim/consumer.ts';
+import { SwimIngest } from './swim/ingest.ts';
+import { solaceTransportFactory } from './swim/solace.ts';
+import { SWIM_DISABLED, type SwimStatus } from './swim/status.ts';
 
 const RETENTION_S = 36 * 3600; // spec §6.2
 const args = new Set(process.argv.slice(2));
@@ -40,7 +43,21 @@ const adsb = new HttpAdsbSource({ userAgent: config.userAgent });
 const live = new LiveService(args.has('--sim') ? new SimAdsbSource({ flights, nav: () => nav, fallback: adsb }) : adsb);
 if (args.has('--sim')) console.log('simulating live positions for stored active flights');
 const airlines = loadAirlines();
-const swim = () => SWIM_DISABLED;
+let swim: () => SwimStatus = () => SWIM_DISABLED;
+if (config.swimEnabled) {
+  if (!config.scds) {
+    console.error(`SWIM_ENABLED=true but ${config.missingScds.join(', ')} not set`);
+    process.exit(1);
+  }
+  const consumer = new SwimConsumer({
+    createTransport: await solaceTransportFactory(config.scds),
+    ingest: new SwimIngest(flights),
+    ...(config.swimRecordDir ? { record: fileRecorder(config.swimRecordDir) } : {}),
+  });
+  consumer.start();
+  swim = () => consumer.status();
+  console.log(`SWIM consumer started (queue ${config.scds.queue})`);
+}
 const resolver = new FlightResolver({ nav: () => nav, flights, live, airlines, swim });
 
 const clientIp = (c: Context): string =>
