@@ -7,7 +7,7 @@ A free, mobile-first flight tracker that draws a flight's filed route and live p
 
 ## Setup
 
-Requires Node.js 22 or newer.
+Requires Node.js 22.12 or newer.
 
     npm install
     npm run navdata:build        # downloads the current FAA NASR cycle into data/
