@@ -47,10 +47,24 @@ export function destinationPoint(from: LatLon, bearing: number, distNm: number):
 
 /** Unsigned distance (nm) of point p from the great circle through a and b. */
 export function crossTrackNm(p: LatLon, a: LatLon, b: LatLon): number {
+  if (a.lat === b.lat && a.lon === b.lon) return distanceNm(a, p); // zero-length leg: no defined line
   const d13 = distanceNm(a, p) / EARTH_RADIUS_NM;
   const t13 = toRad(bearingDeg(a, p));
   const t12 = toRad(bearingDeg(a, b));
   return Math.abs(Math.asin(Math.sin(d13) * Math.sin(t13 - t12)) * EARTH_RADIUS_NM);
+}
+
+/**
+ * Signed distance (nm) of p's closest approach along the great circle from a toward b, measured from a:
+ * negative when p is behind a, beyond the leg length when ahead of b. Zero for a zero-length leg.
+ */
+export function alongTrackNm(p: LatLon, a: LatLon, b: LatLon): number {
+  if (a.lat === b.lat && a.lon === b.lon) return 0;
+  const d13 = distanceNm(a, p) / EARTH_RADIUS_NM;
+  const dTheta = toRad(bearingDeg(a, p) - bearingDeg(a, b));
+  const xt = Math.asin(Math.sin(d13) * Math.sin(dTheta));
+  const along = Math.acos(Math.max(-1, Math.min(1, Math.cos(d13) / Math.cos(xt)))) * EARTH_RADIUS_NM;
+  return Math.cos(dTheta) >= 0 ? along : -along;
 }
 
 /**

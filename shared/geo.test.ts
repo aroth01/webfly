@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bearingDeg, crossTrackNm, destinationPoint, distanceNm, distanceToSegmentNm, normalizeDeg } from './geo.ts';
+import { alongTrackNm, bearingDeg, crossTrackNm, destinationPoint, distanceNm, distanceToSegmentNm, normalizeDeg } from './geo.ts';
 
 const DFW = { lat: 32.89723305, lon: -97.03769472 };
 const LAX = { lat: 33.94249638, lon: -118.40804861 };
@@ -55,5 +55,44 @@ describe('geo', () => {
     const a = { lat: 10, lon: 10 };
     expect(distanceToSegmentNm({ lat: 11, lon: 10 }, a, a)).toBeCloseTo(60.04, 1);
     expect(distanceToSegmentNm(a, a, a)).toBe(0);
+  });
+});
+
+describe('geo edge cases', () => {
+  it('handles the antimeridian', () => {
+    const a = { lat: 10, lon: 179.5 };
+    const b = { lat: 10, lon: -179.5 };
+    expect(distanceNm(a, b)).toBeCloseTo(59.1, 0);
+    expect(bearingDeg(a, b)).toBeCloseTo(90, 0);
+    const p = destinationPoint(a, 90, 60);
+    expect(p.lon).toBeLessThan(-178);
+    expect(p.lon).toBeGreaterThan(-180);
+    expect(crossTrackNm({ lat: 10.1, lon: 180 }, a, b)).toBeLessThan(7);
+  });
+
+  it('handles the southern hemisphere', () => {
+    const syd = { lat: -33.9461, lon: 151.1772 };
+    const akl = { lat: -37.0082, lon: 174.785 };
+    expect(distanceNm(syd, akl)).toBeGreaterThan(1150);
+    expect(distanceNm(syd, akl)).toBeLessThan(1180);
+    expect(bearingDeg(syd, akl)).toBeGreaterThan(90);
+    expect(bearingDeg(syd, akl)).toBeLessThan(120);
+    const p = destinationPoint(syd, 180, 60);
+    expect(p.lat).toBeCloseTo(-34.9461, 1);
+  });
+
+  it('does not produce NaN for a zero-length leg', () => {
+    const a = { lat: 30, lon: -90 };
+    const p = { lat: 30, lon: -89 };
+    expect(crossTrackNm(p, a, a)).toBeCloseTo(distanceNm(a, p), 6);
+    expect(alongTrackNm(p, a, a)).toBe(0);
+  });
+
+  it('measures along-track progress, negative behind the start', () => {
+    const a = { lat: 0, lon: 0 };
+    const b = { lat: 0, lon: 2 };
+    expect(alongTrackNm({ lat: 0.5, lon: 1 }, a, b)).toBeCloseTo(60.04, 1);
+    expect(alongTrackNm({ lat: 0, lon: -1 }, a, b)).toBeCloseTo(-60.04, 1);
+    expect(alongTrackNm({ lat: 0, lon: 3 }, a, b)).toBeCloseTo(180.12, 1);
   });
 });
