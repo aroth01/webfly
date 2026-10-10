@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ns5:MessageCollection xmlns:ns2="http://www.fixm.aero/foundation/3.0" xmlns:ns3="http://www.fixm.aero/flight/3.0" xmlns:ns4="http://www.fixm.aero/base/3.0" xmlns:ns5="http://www.faa.aero/nas/3.0">
+  <message xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="ns5:FlightMessageType">
+    <flight xsi:type="ns5:NasFlightType" centre="ZFW" source="FH" system="FDPS1" timestamp="2026-10-10T14:05:12.118Z">
+      <agreed>
+        <route nasRouteText="KDFW.HRPER3.ABI.J66.EWM..SSO.J4.BXK..DNERO.ANJLL4.KLAX" initialFlightRules="IFR"/>
+      </agreed>
+      <aircraftDescription xsi:type="ns5:NasAircraftType" equipmentQualifier="L">
+        <aircraftType>
+          <icaoModelIdentifier>A321</icaoModelIdentifier>
+        </aircraftType>
+      </aircraftDescription>
+      <arrival xsi:type="ns5:NasArrivalType" arrivalPoint="KLAX">
+        <runwayPositionAndTime>
+          <runwayTime>
+            <estimated time="2026-10-10T19:35:00Z"/>
+          </runwayTime>
+        </runwayPositionAndTime>
+      </arrival>
+      <coordination coordinationTime="2026-10-10T16:40:00Z" coordinationTimeHandling="P"/>
+      <departure xsi:type="ns5:NasDepartureType" departurePoint="KDFW"/>
+      <flightIdentification xsi:type="ns5:NasFlightIdentificationType" computerId="512" siteSpecificPlanId="77" aircraftIdentification="AAL558"/>
+      <flightStatus xsi:type="ns5:NasFlightStatusType" fdpsFlightStatus="PROPOSED"/>
+      <gufi codeSpace="urn:uuid">2b7c4e9a-58f1-4d0e-9a51-6f0e3c2d1a10</gufi>
+      <operator>
+        <operatingOrganization>
+          <organization name="AAL"/>
+        </operatingOrganization>
+      </operator>
+      <flightPlan identifier="KF51234500"/>
+    </flight>
+  </message>
+</ns5:MessageCollection>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ns5:MessageCollection xmlns:ns2="http://www.fixm.aero/foundation/3.0" xmlns:ns3="http://www.fixm.aero/flight/3.0" xmlns:ns4="http://www.fixm.aero/base/3.0" xmlns:ns5="http://www.faa.aero/nas/3.0">
+  <message xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="ns5:FlightMessageType">
+    <flight xsi:type="ns5:NasFlightType" centre="ZFW" source="TH" system="ATL" timestamp="2026-10-10T16:52:03.880Z">
+      <departure xsi:type="ns5:NasDepartureType" departurePoint="KIAH"/>
+      <arrival xsi:type="ns5:NasArrivalType" arrivalPoint="KDEN"/>
+      <flightIdentification xsi:type="ns5:NasFlightIdentificationType" computerId="118" aircraftIdentification="UAL1979"/>
+      <flightStatus xsi:type="ns5:NasFlightStatusType" fdpsFlightStatus="ACTIVE"/>
+      <gufi codeSpace="urn:uuid">7d0e8f2b-0c34-4a52-8d1e-2a6b9c4f5e77</gufi>
+    </flight>
+  </message>
+  <message xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="ns5:FlightMessageType">
+    <flight xsi:type="ns5:NasFlightType" centre="ZFW" source="DH" system="FDPS1" timestamp="2026-10-10T16:52:07.215Z">
+      <arrival xsi:type="ns5:NasArrivalType" arrivalPoint="KLAX">
+        <runwayPositionAndTime>
+          <runwayTime>
+            <estimated time="2026-10-10T19:41:00Z"/>
+          </runwayTime>
+        </runwayPositionAndTime>
+      </arrival>
+      <coordination coordinationTime="2026-10-10T16:51:00Z" coordinationTimeHandling="D"/>
+      <departure xsi:type="ns5:NasDepartureType" departurePoint="KDFW">
+        <runwayPositionAndTime>
+          <runwayTime>
+            <actual time="2026-10-10T16:51:00Z"/>
+          </runwayTime>
+        </runwayPositionAndTime>
+      </departure>
+      <flightIdentification xsi:type="ns5:NasFlightIdentificationType" computerId="512" aircraftIdentification="AAL558"/>
+      <flightStatus xsi:type="ns5:NasFlightStatusType" fdpsFlightStatus="ACTIVE"/>
+      <gufi codeSpace="urn:uuid">2b7c4e9a-58f1-4d0e-9a51-6f0e3c2d1a10</gufi>
+    </flight>
+  </message>
+</ns5:MessageCollection>

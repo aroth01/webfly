@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ns5:MessageCollection xmlns:ns2="http://www.fixm.aero/foundation/3.0" xmlns:ns3="http://www.fixm.aero/flight/3.0" xmlns:ns4="http://www.fixm.aero/base/3.0" xmlns:ns5="http://www.faa.aero/nas/3.0">
+  <message xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="ns5:FlightMessageType">
+    <flight xsi:type="ns5:NasFlightType" centre="ZLA" source="HV" system="FDPS1" timestamp="2026-10-10T19:44:31.007Z">
+      <arrival xsi:type="ns5:NasArrivalType" arrivalPoint="KLAX">
+        <runwayPositionAndTime>
+          <runwayTime>
+            <actual time="2026-10-10T19:44:00Z"/>
+          </runwayTime>
+        </runwayPositionAndTime>
+      </arrival>
+      <departure xsi:type="ns5:NasDepartureType" departurePoint="KDFW"/>
+      <flightIdentification xsi:type="ns5:NasFlightIdentificationType" computerId="271" aircraftIdentification="AAL558"/>
+      <flightStatus xsi:type="ns5:NasFlightStatusType" fdpsFlightStatus="COMPLETED"/>
+      <gufi codeSpace="urn:uuid">2b7c4e9a-58f1-4d0e-9a51-6f0e3c2d1a10</gufi>
+    </flight>
+  </message>
+</ns5:MessageCollection>
