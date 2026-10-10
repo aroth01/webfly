@@ -1,5 +1,5 @@
 import { Hono, type Context } from 'hono';
-import { getCookie, setCookie } from 'hono/cookie';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { NavDb } from '../../navdata/navdb.ts';
 import type { FlightService, SwimStatus } from '../flight/service.ts';
@@ -25,6 +25,8 @@ export interface AppDeps {
   auth?: SessionAuth;
   /** Attempts at the access code, per IP. */
   loginLimiter?: RateLimiter;
+  /** Attempts at the access code across all clients combined, so spreading guesses over many IPs does not help. */
+  globalLoginLimiter?: RateLimiter;
   /** Trust the `Fly-Client-IP` header. Only safe behind Fly's proxy, which overwrites it; defaults to on when FLY_APP_NAME is set. */
   trustFlyClientIp?: boolean;
   now?: () => number; // epoch ms
@@ -65,6 +67,7 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   const loginLimiter = deps.loginLimiter ?? new RateLimiter({ capacity: 5, perMinute: 5, now });
+  const globalLoginLimiter = deps.globalLoginLimiter ?? new RateLimiter({ capacity: 20, perMinute: 20, now });
   const isOpen = (path: string) => path === '/api/health' || path === '/api/auth';
 
   app.use('/api/*', async (c, next) => {
@@ -86,12 +89,20 @@ export function createApp(deps: AppDeps): Hono {
   app.post('/api/auth', async (c) => {
     const auth = deps.auth;
     if (!auth) return c.json({ required: false, authenticated: true });
-    if (!loginLimiter.take(clientIp(c, trustFly))) return fail(c, 429, 'rate_limited', 'Too many attempts. Wait a minute.');
+    if (!loginLimiter.take(clientIp(c, trustFly)) || !globalLoginLimiter.take('all')) {
+      return fail(c, 429, 'rate_limited', 'Too many attempts. Wait a minute.');
+    }
     const body = (await c.req.json().catch(() => null)) as { code?: unknown } | null;
     if (!auth.checkCode(body?.code)) return fail(c, 401, 'bad_code', 'Wrong access code.');
     const https = c.req.header('x-forwarded-proto') === 'https' || c.req.url.startsWith('https:');
     setCookie(c, SESSION_COOKIE, auth.issue(), { httpOnly: true, sameSite: 'Strict', secure: https, path: '/', maxAge: Math.floor(auth.ttlMs / 1000) });
     return c.json({ required: true, authenticated: true });
+  });
+
+  app.delete('/api/auth', (c) => {
+    deps.auth?.revoke(getCookie(c, SESSION_COOKIE));
+    deleteCookie(c, SESSION_COOKIE, { path: '/' });
+    return c.json({ required: Boolean(deps.auth), authenticated: !deps.auth });
   });
 
   app.get('/api/flight/:query', async (c) => {

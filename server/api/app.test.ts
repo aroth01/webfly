@@ -215,6 +215,33 @@ describe('access control', () => {
     expect((await post(app, { code }, '4.4.4.4')).status).toBe(200); // other IPs unaffected
   });
 
+  it('limits login attempts across all IPs combined', async () => {
+    const { app } = locked();
+    const statuses: number[] = [];
+    for (let i = 0; i < 24; i++) statuses.push((await post(app, { code: 'guess' }, `10.1.0.${i}`)).status); // one attempt per IP
+    expect(statuses.filter((s) => s === 401)).toHaveLength(20);
+    expect(statuses.slice(20)).toEqual([429, 429, 429, 429]);
+    expect((await post(app, { code }, '10.1.1.1')).status).toBe(429); // even the right code, while the cap is hit
+  });
+
+  it('logout revokes the session server-side', async () => {
+    const { app, auth } = locked();
+    const token = auth.issue();
+    const headers = { cookie: `webfly_session=${token}`, 'fly-client-ip': '9.9.9.1' };
+    expect((await app.request('/api/live/AAL558', { headers })).status).toBe(200);
+    const out = await app.request('/api/auth', { method: 'DELETE', headers });
+    expect(out.status).toBe(200);
+    expect(out.headers.get('set-cookie') ?? '').toMatch(/webfly_session=;/);
+    expect((await app.request('/api/live/AAL558', { headers })).status).toBe(401); // the copied token is dead too
+  });
+
+  it('a different access code invalidates sessions even with the same secret', () => {
+    const a = new SessionAuth({ code: 'one', secret: 'same', now: () => NOW_MS });
+    const b = new SessionAuth({ code: 'two', secret: 'same', now: () => NOW_MS });
+    expect(b.verify(a.issue())).toBe(false);
+    expect(a.verify(a.issue())).toBe(true);
+  });
+
   it('rejects tampered and expired sessions', async () => {
     let t = NOW_MS;
     const { app, auth } = locked({ now: () => t });

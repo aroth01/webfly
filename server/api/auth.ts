@@ -10,18 +10,22 @@ export interface SessionAuthOptions {
 }
 
 const DAY_MS = 86_400_000;
+const MAX_REVOKED = 10_000;
 export const SESSION_COOKIE = 'webfly_session';
 
 /** Access-code login with stateless, signed, expiring session tokens. */
 export class SessionAuth {
   readonly ttlMs: number;
   private readonly codeDigest: Buffer;
-  private readonly secret: string;
+  private readonly key: Buffer;
+  private readonly revoked = new Map<string, number>(); // token -> its expiry, so entries can be pruned
   private readonly now: () => number;
 
   constructor(opts: SessionAuthOptions) {
     this.codeDigest = createHash('sha256').update(opts.code).digest();
-    this.secret = opts.secret ?? randomBytes(32).toString('hex');
+    // The signing key is bound to the access code: changing ACCESS_CODE invalidates every session even if
+    // SESSION_SECRET stays the same.
+    this.key = createHmac('sha256', opts.secret ?? randomBytes(32)).update(this.codeDigest).digest();
     this.now = opts.now ?? Date.now;
     this.ttlMs = opts.ttlMs ?? 30 * DAY_MS;
   }
@@ -37,8 +41,16 @@ export class SessionAuth {
     return `${exp}.${this.sign(exp)}`;
   }
 
+  /** End one session (logout). Revoked tokens are remembered until they would have expired anyway. */
+  revoke(token: string | undefined): void {
+    if (!token || !this.verify(token)) return;
+    const t = this.now();
+    for (const [k, exp] of this.revoked) if (exp <= t) this.revoked.delete(k);
+    if (this.revoked.size < MAX_REVOKED) this.revoked.set(token, Number(token.slice(0, token.indexOf('.'))));
+  }
+
   verify(token: string | undefined): boolean {
-    if (!token) return false;
+    if (!token || this.revoked.has(token)) return false;
     const dot = token.indexOf('.');
     if (dot < 1) return false;
     const exp = token.slice(0, dot);
@@ -49,7 +61,7 @@ export class SessionAuth {
   }
 
   private sign(exp: string): string {
-    return createHmac('sha256', this.secret).update(exp).digest('base64url');
+    return createHmac('sha256', this.key).update(exp).digest('base64url');
   }
 }
 
