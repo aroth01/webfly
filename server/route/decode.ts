@@ -1,4 +1,4 @@
-import { crossTrackNm, destinationPoint, distanceNm, normalizeDeg } from '../../shared/geo.ts';
+import { destinationPoint, distanceNm, distanceToSegmentNm, normalizeDeg } from '../../shared/geo.ts';
 import type { RoutePoint } from '../../shared/types.ts';
 import type { NavDb } from '../../navdata/navdb.ts';
 import { LATLON_DEG_RE, LATLON_RE, tokenizeRoute } from './tokenize.ts';
@@ -19,8 +19,10 @@ export interface DecodeOptions {
 const FRD_RE = /^([A-Z0-9]{2,3})(\d{3})(\d{3})$/;
 /** Radial only, e.g. PUT105 = "via PUT's 105 radial"; a direction, not a point. */
 const RADIAL_RE = /^([A-Z]{2,3})(\d{3})$/;
-/** A point that pulls the route this far sideways from its neighbors is a bad ident match. */
+/** A point this far from the segment between its neighbors is a bad ident match. */
 const ZIGZAG_NM = 300;
+/** Longest run of consecutive bad points the zig-zag guard removes as a unit. */
+const ZIGZAG_MAX_RUN = 4;
 /** How far from the airway a route may join it "from the side" (e.g. straight from the airport). */
 const AIRWAY_ENTRY_SNAP_NM = 60;
 
@@ -169,22 +171,34 @@ export function decodeRoute(text: string, db: NavDb, opts: DecodeOptions = {}): 
 
   if (opts.dest && !sameAirport(tokens[tokens.length - 1], opts.dest)) add(airportPoint(opts.dest));
 
+  const dropped = dropZigZags(points);
+  return { points, partial: unresolved.length > 0 || dropped.length > 0, unresolved, dropped };
+}
+
+/**
+ * Zig-zag guard (spec §6.3). Each pass scores every run of 1..ZIGZAG_MAX_RUN consecutive interior points against
+ * the segment joining the run's outer neighbours, and removes the one run whose nearest-to-the-route member is
+ * farthest from it, provided every member is more than ZIGZAG_NM off. Repeats until nothing is that far off.
+ * - Segment (not great-circle) distance catches out-and-back spikes that lie along the line of the route.
+ * - Runs catch clusters of wrong points (a wrong SID/STAR's fixes) that would shield each other one at a time.
+ * - Removing only the worst run per pass keeps a good point that merely looks off-line next to a far outlier.
+ * Mutates `points`; returns the removed idents in removal order.
+ */
+function dropZigZags(points: RoutePoint[]): string[] {
   const dropped: string[] = [];
-  let changed = true;
-  while (changed && points.length > 2) {
-    changed = false;
-    for (let i = 1; i < points.length - 1; i++) {
-      const a = points[i - 1] as RoutePoint;
-      const p = points[i] as RoutePoint;
-      const b = points[i + 1] as RoutePoint;
-      if (distanceNm(a, b) > 1 && crossTrackNm(p, a, b) > ZIGZAG_NM) {
-        dropped.push(p.ident);
-        points.splice(i, 1);
-        changed = true;
-        break;
+  for (;;) {
+    let worst: { start: number; len: number; score: number } | undefined;
+    for (let len = 1; len <= ZIGZAG_MAX_RUN; len++) {
+      for (let start = 1; start + len < points.length; start++) {
+        const a = points[start - 1] as RoutePoint;
+        const b = points[start + len] as RoutePoint;
+        if (distanceNm(a, b) <= 1) continue; // no segment to measure against (e.g. a round trip)
+        let score = Infinity;
+        for (let i = start; i < start + len; i++) score = Math.min(score, distanceToSegmentNm(points[i] as RoutePoint, a, b));
+        if (score > ZIGZAG_NM && (!worst || score > worst.score)) worst = { start, len, score };
       }
     }
+    if (!worst) return dropped;
+    for (const p of points.splice(worst.start, worst.len)) dropped.push(p.ident);
   }
-
-  return { points, partial: unresolved.length > 0 || dropped.length > 0, unresolved, dropped };
 }

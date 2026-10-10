@@ -28,6 +28,8 @@ const data: NavDataFile = {
     { id: 'STRFX', lat: 30.0, lon: -92.0 },
     { id: 'FINAL', lat: 30.0, lon: -91.0 },
     { id: 'FARAWY', lat: 45.0, lon: -96.0 },
+    { id: 'FARAWZ', lat: 45.0, lon: -97.0 },
+    { id: 'SPIKE', lat: 30.0, lon: -85.0 }, // on the route's line, ~520 nm beyond VRB
   ],
   airways: [
     { id: 'J1', loc: 'C', pts: ['VRA', 'WPT1', 'WPT2', 'VRB'] },
@@ -112,6 +114,40 @@ describe('decodeRoute', () => {
     expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'VRA', 'VRB', 'KBBB']);
     expect(r.dropped).toEqual(['FARAWY']);
     expect(r.partial).toBe(true);
+  });
+
+  it('drops an out-and-back spike that lies along the line of the route', () => {
+    const r = decodeRoute('KAAA VRA SPIKE VRB KBBB', db);
+    expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'VRA', 'VRB', 'KBBB']);
+    expect(r.dropped).toEqual(['SPIKE']);
+    expect(r.partial).toBe(true);
+  });
+
+  it('drops a cluster of far-off points that shield each other', () => {
+    const r = decodeRoute('KAAA VRA FARAWZ FARAWY VRB KBBB', db);
+    expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'VRA', 'VRB', 'KBBB']);
+    expect(r.dropped).toEqual(['FARAWZ', 'FARAWY']);
+    expect(r.partial).toBe(true);
+  });
+
+  it('keeps a good point next to a far outlier and drops only the outlier', () => {
+    // STRT1 is 364 nm along the route but 355 nm from the line KAAA-FARAWY; FARAWY is the one to drop.
+    const r = decodeRoute('KAAA STRT1 FARAWY KBBB', db);
+    expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'STRT1', 'KBBB']);
+    expect(r.dropped).toEqual(['FARAWY']);
+  });
+
+  it('drops several separate outliers from one route, worst first', () => {
+    // WPT2 sits ~500 nm off the line FARAWY-SPIKE until FARAWY is gone; it must survive.
+    const r = decodeRoute('KAAA VRA FARAWY WPT2 SPIKE VRB KBBB', db);
+    expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'VRA', 'WPT2', 'VRB', 'KBBB']);
+    expect(r.dropped).toEqual(['FARAWY', 'SPIKE']);
+  });
+
+  it('keeps the far point of a round trip, which has no segment to measure against', () => {
+    const r = decodeRoute('KAAA FARAWY KAAA', db);
+    expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'FARAWY', 'KAAA']);
+    expect(r.dropped).toEqual([]);
   });
 
   it('adds origin and destination when the text omits them, without duplicating them', () => {

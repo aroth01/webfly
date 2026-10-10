@@ -52,3 +52,16 @@ export function crossTrackNm(p: LatLon, a: LatLon, b: LatLon): number {
   const t12 = toRad(bearingDeg(a, b));
   return Math.abs(Math.asin(Math.sin(d13) * Math.sin(t13 - t12)) * EARTH_RADIUS_NM);
 }
+
+/**
+ * Distance (nm) of point p from the great-circle segment a–b: the cross-track distance when p lies abeam the
+ * segment, else the distance to the nearer end (so a point far beyond b on the same line still counts as far).
+ */
+export function distanceToSegmentNm(p: LatLon, a: LatLon, b: LatLon): number {
+  if (a.lat === b.lat && a.lon === b.lon) return distanceNm(a, p);
+  // p is abeam the segment when it is within 90 degrees of the segment's direction as seen from both ends.
+  const offA = Math.abs(normalizeDeg(bearingDeg(a, p) - bearingDeg(a, b) + 180) - 180);
+  const offB = Math.abs(normalizeDeg(bearingDeg(b, p) - bearingDeg(b, a) + 180) - 180);
+  if (offA > 90 || offB > 90) return Math.min(distanceNm(a, p), distanceNm(b, p));
+  return crossTrackNm(p, a, b);
+}
