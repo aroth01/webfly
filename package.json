@@ -14,8 +14,10 @@
     "decode": "tsx scripts/decode.ts"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.4",
     "csv-parse": "^7.0.3",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "hono": "^4.13.13"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
