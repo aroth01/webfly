@@ -1,0 +1,110 @@
+import { Hono, type Context } from 'hono';
+import { getConnInfo } from '@hono/node-server/conninfo';
+import type { NavDb } from '../../navdata/navdb.ts';
+import type { FlightService, SwimStatus } from '../flight/service.ts';
+import { liveState, type AdsbClient } from '../live/adsb.ts';
+import { trimTrail } from '../live/trail.ts';
+import { RateLimiter } from './ratelimit.ts';
+
+export interface SwimHealth extends SwimStatus {
+  connected: boolean;
+  keptPerMin: number;
+  droppedPerMin: number;
+}
+
+export interface AppDeps {
+  service: FlightService;
+  adsb: AdsbClient;
+  nav: () => NavDb;
+  swim?: () => SwimHealth;
+  limiter?: RateLimiter;
+  now?: () => number; // epoch ms
+  log?: (msg: string) => void;
+}
+
+const HEX_RE = /^[0-9a-f]{6}$/i;
+const CALLSIGN_RE = /^[A-Z0-9]{2,8}$/i;
+const INT_RE = /^-?\d{1,3}$/;
+
+const fail = (c: Context, status: 400 | 404 | 429 | 500, code: string, message: string) => c.json({ error: { code, message } }, status);
+
+/** The client's address: Fly's header on Fly, else the socket (not available under `app.request`). */
+function clientIp(c: Context): string {
+  const fly = c.req.header('fly-client-ip');
+  if (fly) return fly;
+  try {
+    return getConnInfo(c).remote.address ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+export function createApp(deps: AppDeps): Hono {
+  const now = deps.now ?? Date.now;
+  const startedAt = now();
+  const limiter = deps.limiter ?? new RateLimiter({ now });
+  const app = new Hono();
+
+  app.use('/api/*', async (c, next) => {
+    if (c.req.path === '/api/health') return next(); // platform health checks must never be throttled
+    if (!limiter.take(clientIp(c))) {
+      c.header('Retry-After', '10');
+      return fail(c, 429, 'rate_limited', 'Too many requests. Slow down.');
+    }
+    return next();
+  });
+
+  app.get('/api/flight/:query', async (c) => {
+    const result = await deps.service.lookup(c.req.param('query'));
+    if (result.kind === 'error') return fail(c, result.status, result.code, result.message);
+    if (result.kind === 'choices') return c.json({ choices: result.choices });
+    return c.json(result.view);
+  });
+
+  app.get('/api/live/:callsign', async (c) => {
+    const callsign = c.req.param('callsign').toUpperCase();
+    if (!CALLSIGN_RE.test(callsign)) return fail(c, 400, 'bad_callsign', 'Invalid callsign.');
+    c.header('Cache-Control', 'public, max-age=5');
+    return c.json(await liveState(deps.adsb, callsign, now));
+  });
+
+  app.get('/api/trail/:hex', async (c) => {
+    const hex = c.req.param('hex');
+    if (!HEX_RE.test(hex)) return fail(c, 400, 'bad_hex', 'Invalid transponder address.');
+    const callsign = c.req.query('callsign');
+    c.header('Cache-Control', 'public, max-age=30');
+    return c.json(trimTrail(await deps.adsb.trace(hex), callsign));
+  });
+
+  app.get('/api/nav/:cycle/:lat/:lon', (c) => {
+    const { cycle, lat, lon } = c.req.param();
+    if (!INT_RE.test(lat) || !INT_RE.test(lon)) return fail(c, 400, 'bad_tile', 'lat and lon must be integers.');
+    const la = Number(lat);
+    const lo = Number(lon);
+    if (la % 2 !== 0 || lo % 2 !== 0 || la < -90 || la > 88 || lo < -180 || lo > 178) {
+      return fail(c, 400, 'bad_tile', 'lat and lon must be even integers inside the world grid.');
+    }
+    const nav = deps.nav();
+    if (cycle !== nav.navCycle) return fail(c, 404, 'cycle_mismatch', `Current nav cycle is ${nav.navCycle}.`);
+    c.header('Cache-Control', 'public, max-age=31536000, immutable');
+    return c.json(nav.tile(la, lo));
+  });
+
+  app.get('/api/health', (c) => {
+    const swim = deps.swim?.() ?? { enabled: false, connected: false, keptPerMin: 0, droppedPerMin: 0 };
+    return c.json({
+      swim: { enabled: swim.enabled, connected: swim.connected, lastMessageAt: swim.lastMessageAt ?? null, keptPerMin: swim.keptPerMin, droppedPerMin: swim.droppedPerMin },
+      navCycle: deps.nav().navCycle,
+      uptimeSec: Math.round((now() - startedAt) / 1000),
+    });
+  });
+
+  app.all('/api/*', (c) => fail(c, 404, 'not_found', 'No such endpoint.'));
+
+  app.onError((err, c) => {
+    deps.log?.(`500 ${c.req.method} ${c.req.path}: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
+    return fail(c, 500, 'internal', 'Something went wrong.');
+  });
+
+  return app;
+}

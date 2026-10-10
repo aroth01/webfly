@@ -9,6 +9,7 @@ import type { FlightRow, FlightStore } from '../store/flights.ts';
 const VIEW_TTL_MS = 60_000;
 const SWIM_STALE_MS = 3 * 60_000;
 const ROUTE_CACHE_MAX = 500;
+const VIEW_CACHE_MAX = 1_000;
 
 export type Lookup =
   | { kind: 'view'; view: FlightView }
@@ -52,7 +53,10 @@ export class FlightService {
     const hit = this.views.get(key);
     if (hit && this.now() - hit.at < VIEW_TTL_MS) return hit.value;
     const value = await this.compute(query);
-    if (value.kind !== 'error') this.views.set(key, { at: this.now(), value });
+    if (value.kind !== 'error') {
+      if (this.views.size >= VIEW_CACHE_MAX) this.views.delete(this.views.keys().next().value as string);
+      this.views.set(key, { at: this.now(), value });
+    }
     return value;
   }
 

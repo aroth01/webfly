@@ -68,6 +68,17 @@ describe('AdsbClient caching', () => {
   });
 });
 
+describe('cache bound', () => {
+  it('evicts old entries instead of growing without limit', async () => {
+    const h = harness(() => json({ ac: [] }));
+    for (let i = 0; i < 2_100; i++) await h.client.aircraft(`ZZ${i}`);
+    h.calls.length = 0;
+    await h.client.aircraft('ZZ0'); // evicted, so it must refetch
+    await h.client.aircraft('ZZ2099'); // recent, still cached
+    expect(h.calls).toHaveLength(1);
+  });
+});
+
 describe('liveState', () => {
   it('excludes the subject from traffic and maps fields', async () => {
     const h = harness((url) =>

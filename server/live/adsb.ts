@@ -39,6 +39,8 @@ const BACKOFF_MIN = 1_000;
 const BACKOFF_MAX = 60_000;
 /** Traffic is cached per cell of this many degrees (about 6 nm of latitude). */
 const CELL_DEG = 0.1;
+/** Keys come from client input (callsigns, hex codes, positions), so the cache must not grow without bound. */
+const CACHE_MAX = 2_000;
 
 class HttpError extends Error {
   constructor(readonly status: number) {
@@ -123,7 +125,9 @@ export class AdsbClient {
     const p = (async () => {
       try {
         const entry = { value: await load(), at: this.now() };
+        this.cache.delete(key); // re-insert so Map order tracks recency
         this.cache.set(key, entry);
+        if (this.cache.size > CACHE_MAX) this.cache.delete(this.cache.keys().next().value as string);
         this.failures = 0;
         return entry;
       } catch (e) {
