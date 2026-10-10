@@ -12,7 +12,7 @@ Plans are numbered in execution order.
 | 2 | **API server** | §5.1 `server/resolve`, `server/live`, `server/api`; §6.2 schema; §6.4; §6.5; §7; §8; §10 server rows | `npm run dev:server` answers `/api/flight/AA558` (from seeded flight plans), `/api/live/AAL558` (real adsb.lol data), `/api/trail`, `/api/nav` tiles and `/api/health` | 1 | **Done:** `2026-10-10-webfly-plan-2-api-server.md` |
 | 3 | **ND client** | §9 (all); §10 client rows; §11 visual regression | Vite dev server on a phone: input screen → live ARC-mode ND against the Plan 2 API | 2 | **Done:** `2026-10-10-webfly-plan-3-nd-client.md` |
 | 4 | **SWIM ingest** | §6.2 consumer, prefilter, purge, health counters; §11 SFDPS parser and replay | `npm run swim:replay <dir>` fills the flights table from recorded SFDPS messages; with SCDS credentials, the live consumer connects and stays current | 2; **FAA SCDS access** (or official SFDPS sample messages) | To be written once SCDS access or samples are in hand |
-| 5 | **Deploy and ops** | §5 machine; §6.1 runtime cycle update; §12 | `fly deploy` → the public URL works on a phone; the NASR cycle self-updates; `/api/health` is green | 3 (and 4 for filed routes) | To be written |
+| 5 | **Deploy and ops** | §5 machine; §6.1 runtime cycle update; §12 | `fly deploy` → the public URL works on a phone; the NASR cycle self-updates; `/api/health` is green | 3 (and 4 for filed routes) | **Code done** (static serving, NASR auto-update, Dockerfile, fly.toml); image build and `fly deploy` unverified, need owner's Fly account |
 
 ## Notes
 

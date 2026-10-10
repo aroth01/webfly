@@ -17,6 +17,7 @@ export interface AppDeps {
   adsb: AdsbClient;
   nav: () => NavDb;
   swim?: () => SwimHealth;
+  navStatus?: () => { lastCheckAt: number | null; lastError: string | null };
   limiter?: RateLimiter;
   /** Trust the `Fly-Client-IP` header. Only safe behind Fly's proxy, which overwrites it; defaults to on when FLY_APP_NAME is set. */
   trustFlyClientIp?: boolean;
@@ -98,6 +99,7 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({
       swim: { enabled: swim.enabled, connected: swim.connected, lastMessageAt: swim.lastMessageAt ?? null, keptPerMin: swim.keptPerMin, droppedPerMin: swim.droppedPerMin },
       navCycle: deps.nav().navCycle,
+      nav: deps.navStatus?.() ?? { lastCheckAt: null, lastError: null },
       uptimeSec: Math.round((now() - startedAt) / 1000),
     });
   });

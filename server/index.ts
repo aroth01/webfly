@@ -1,27 +1,36 @@
-import { mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { serve } from '@hono/node-server';
-import { findLatestNavData, loadNavDb } from '../navdata/load.ts';
 import { createApp } from './api/app.ts';
 import { FlightService } from './flight/service.ts';
 import { AdsbClient } from './live/adsb.ts';
+import { NavManager } from './nav/manager.ts';
+import { mountStatic } from './static.ts';
 import { FlightStore } from './store/flights.ts';
 
 const dataDir = process.env.DATA_DIR ?? 'data';
 const port = Number(process.env.PORT ?? 8787);
+const webDir = process.env.WEB_DIR ?? 'dist/web';
 const log = (msg: string) => console.log(`${new Date().toISOString()} ${msg}`);
 
-const navPath = findLatestNavData(dataDir);
-if (!navPath) {
-  console.error(`No nav data in ${dataDir}/. Run: npm run navdata:build`);
-  process.exit(1);
-}
-const nav = loadNavDb(navPath);
 mkdirSync(dataDir, { recursive: true });
+// A mounted volume hides anything baked into the image at the same path, so the image keeps a copy of the
+// build-time cycle in NAV_SEED_DIR and we copy it over on first boot (no network needed to start).
+const seedDir = process.env.NAV_SEED_DIR;
+if (seedDir && existsSync(seedDir)) {
+  for (const name of readdirSync(seedDir).filter((n) => /^nasr-.*\.json\.gz$/.test(n))) {
+    if (!existsSync(join(dataDir, name))) copyFileSync(join(seedDir, name), join(dataDir, name));
+  }
+}
+const navManager = await NavManager.create({ dataDir, log });
+navManager.start();
+void navManager.check(); // pick up a cycle that took effect while we were down
+
 const store = new FlightStore(join(dataDir, 'flights.db'));
 const adsb = new AdsbClient({ userAgent: process.env.ADSB_USER_AGENT ?? 'webfly/0.1 (+https://github.com/aroth01/webfly)' });
-const service = new FlightService({ store, nav: () => nav, adsb, log });
-const app = createApp({ service, adsb, nav: () => nav, log });
+const service = new FlightService({ store, nav: () => navManager.nav, adsb, log });
+const app = createApp({ service, adsb, nav: () => navManager.nav, navStatus: () => navManager.status, log });
+if (mountStatic(app, webDir)) log(`serving web app from ${webDir}`);
 
 // Spec section 6.2: purge flight plans not updated in 36 h, hourly.
 const purge = () => {
@@ -31,4 +40,12 @@ const purge = () => {
 purge();
 setInterval(purge, 3600_000).unref();
 
-serve({ fetch: app.fetch, port }, (info) => log(`webfly API on http://localhost:${info.port} (NASR ${nav.cycle}, AIRAC ${nav.navCycle}, ${store.count()} plans)`));
+const server = serve({ fetch: app.fetch, port }, (info) =>
+  log(`webfly on http://localhost:${info.port} (NASR ${navManager.nav.cycle}, AIRAC ${navManager.nav.navCycle}, ${store.count()} plans)`),
+);
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(sig, () => {
+    navManager.stop();
+    server.close(() => process.exit(0));
+  });
+}

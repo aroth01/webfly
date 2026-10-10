@@ -35,3 +35,11 @@ export function airacIdent(cycle: string): string {
   const n = Math.round((t - first) / CYCLE_MS) + 1;
   return `${String(year % 100).padStart(2, '0')}${String(n).padStart(2, '0')}`;
 }
+
+/** NASR cycles take effect at 0901Z on their effective date. */
+const EFFECTIVE_OFFSET_MS = (9 * 60 + 1) * 60_000;
+
+/** The cycle actually in effect at `when`, switching at 0901Z rather than at midnight. */
+export function cycleInEffect(when: Date): string {
+  return cycleFor(new Date(when.getTime() - EFFECTIVE_OFFSET_MS));
+}
