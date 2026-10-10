@@ -81,7 +81,10 @@ export function decodeRoute(text: string, db: NavDb, opts: DecodeOptions = {}): 
     const tok = tokens[k] as string;
     const next = tokens[k + 1];
 
-    if (k === 0 || k === tokens.length - 1) {
+    // The end tokens are the airports, unless the caller named different ones (then "SGF" is the VORTAC).
+    const isOrigin = k === 0 && (!opts.origin || sameAirport(tok, opts.origin));
+    const isDest = k === tokens.length - 1 && (!opts.dest || sameAirport(tok, opts.dest));
+    if (isOrigin || isDest) {
       const apt = airportPoint(tok);
       if (apt) {
         add(apt);

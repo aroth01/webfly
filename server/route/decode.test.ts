@@ -13,6 +13,7 @@ const data: NavDataFile = {
     { id: 'CCC', name: 'BESIDE J1', lat: 30.05, lon: -97.0, rwyFt: 6000, pub: true },
     { id: 'AAX', icao: 'KAAX', name: 'NEAR ORIGIN', lat: 30.2, lon: -100.0, rwyFt: 5000, pub: true },
     { id: 'BBX', icao: 'KBBX', name: 'NEAR DEST', lat: 30.2, lon: -90.0, rwyFt: 5000, pub: true },
+    { id: 'VRB', name: 'BRAVO MUNI', lat: 30.03, lon: -95.05, rwyFt: 4000, pub: true }, // shares the VORTAC's id, like SGF
   ],
   navaids: [
     { id: 'VRA', type: 'VORTAC', name: 'ALPHA', lat: 30.0, lon: -98.0, varDeg: 5 },
@@ -181,6 +182,22 @@ describe('decodeRoute', () => {
   it('adds origin and destination when the text omits them, without duplicating them', () => {
     expect(idents('VRA J1 VRB', { origin: 'KAAA', dest: 'KBBB' })).toEqual(['KAAA', 'VRA', 'WPT1', 'WPT2', 'VRB', 'KBBB']);
     expect(idents('AAA VRA BBB', { origin: 'KAAA', dest: 'KBBB' })).toEqual(['AAA', 'VRA', 'BBB']);
+  });
+
+  it('decodes an end token that is not the supplied origin or destination as a navaid, not an airport', () => {
+    const kinds = (text: string, opts = {}) => decodeRoute(text, db, opts).points.map((p) => `${p.ident}:${p.kind}`);
+    expect(kinds('VRB J1 VRA', { origin: 'KBBB', dest: 'KAAA' })).toEqual([
+      'KBBB:airport',
+      'VRB:navaid',
+      'WPT2:fix',
+      'WPT1:fix',
+      'VRA:navaid',
+      'KAAA:airport',
+    ]);
+    expect(kinds('KAAA VRA J1 VRB', { dest: 'KBBB' }).slice(-2)).toEqual(['VRB:navaid', 'KBBB:airport']);
+    // Without options, or when it is the supplied airport, an end token is still taken as the airport.
+    expect(kinds('VRB J1 VRA KAAA')[0]).toBe('VRB:airport');
+    expect(kinds('VRB J1 VRA', { origin: 'VRB', dest: 'KAAA' })[0]).toBe('VRB:airport');
   });
 
   it('flies only the SID body when the next fix is not one of its transitions', () => {
