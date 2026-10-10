@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bearingDeg, crossTrackNm, destinationPoint, distanceNm, normalizeDeg } from './geo.ts';
+import { alongTrackNm, bearingDeg, crossTrackNm, destinationPoint, distanceNm, interpolateGc, normalizeDeg } from './geo.ts';
 
 const DFW = { lat: 32.89723305, lon: -97.03769472 };
 const LAX = { lat: 33.94249638, lon: -118.40804861 };
@@ -40,5 +40,24 @@ describe('geo', () => {
   it('measures cross-track distance from a great circle', () => {
     expect(crossTrackNm({ lat: 1, lon: 0.5 }, { lat: 0, lon: 0 }, { lat: 0, lon: 1 })).toBeCloseTo(60.04, 1);
     expect(crossTrackNm({ lat: 0, lon: 0.5 }, { lat: 0, lon: 0 }, { lat: 0, lon: 1 })).toBeCloseTo(0, 6);
+  });
+
+  it('measures signed along-track distance', () => {
+    const a = { lat: 0, lon: 0 };
+    const b = { lat: 0, lon: 2 };
+    expect(alongTrackNm({ lat: 0.5, lon: 1 }, a, b)).toBeCloseTo(60.04, 1);
+    expect(alongTrackNm({ lat: 0, lon: -1 }, a, b)).toBeCloseTo(-60.04, 1);
+    expect(alongTrackNm({ lat: 0, lon: 3 }, a, b)).toBeCloseTo(180.12, 1);
+    expect(alongTrackNm(LAX, DFW, LAX)).toBeCloseTo(distanceNm(DFW, LAX), 3);
+  });
+
+  it('interpolates along the great circle', () => {
+    expect(interpolateGc(DFW, LAX, 0).lat).toBeCloseTo(DFW.lat, 9);
+    const end = interpolateGc(DFW, LAX, 1);
+    expect(end.lat).toBeCloseTo(LAX.lat, 9);
+    expect(end.lon).toBeCloseTo(LAX.lon, 9);
+    const mid = interpolateGc(DFW, LAX, 0.5);
+    expect(distanceNm(DFW, mid)).toBeCloseTo(distanceNm(DFW, LAX) / 2, 6);
+    expect(crossTrackNm(mid, DFW, LAX)).toBeCloseTo(0, 6);
   });
 });
