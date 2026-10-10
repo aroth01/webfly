@@ -24,8 +24,13 @@ export const CULL_FACTOR = 1.1;
  * the feature is beyond 1.1 x range.
  */
 export function project(own: LatLon, refDeg: number, rangeNm: number, geom: Geom, f: LatLon): Projected | null {
+  const p = projectAny(own, refDeg, rangeNm, geom, f);
+  return p.distNm > rangeNm * CULL_FACTOR ? null : p;
+}
+
+/** Like `project` but never culls; for route legs whose ends lie outside the display and are clipped by the canvas. */
+export function projectAny(own: LatLon, refDeg: number, rangeNm: number, geom: Geom, f: LatLon): Projected {
   const distNm = distanceNm(own, f);
-  if (distNm > rangeNm * CULL_FACTOR) return null;
   const brgDeg = distNm === 0 ? refDeg : bearingDeg(own, f);
   const rel = ((brgDeg - refDeg) * Math.PI) / 180;
   const px = (distNm * geom.radius) / rangeNm;
