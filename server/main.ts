@@ -1,4 +1,6 @@
-// WebFly server. Usage: tsx server/main.ts [--seed]
+// WebFly server. Usage: tsx server/main.ts [--seed] [--sim]
+//   --seed  write development flight plans
+//   --sim   fly stored active flights along their routes instead of asking adsb.lol (development only)
 import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { Context } from 'hono';
@@ -8,6 +10,7 @@ import { createApp } from './api/app.ts';
 import { loadConfig } from './config.ts';
 import { HttpAdsbSource } from './live/adsb.ts';
 import { LiveService } from './live/live.ts';
+import { SimAdsbSource } from './live/sim.ts';
 import { loadAirlines } from './resolve/airlines.ts';
 import { FlightResolver } from './resolve/resolve.ts';
 import { FlightStore } from './store/flights.ts';
@@ -33,7 +36,9 @@ console.log(`nav data ${navPath} (AIRAC ${nav.airac})`);
 const flights = new FlightStore(config.flightsDb);
 if (args.has('--seed')) console.log(`seeded ${seedFlights(flights, Date.now())} development flight plans`);
 
-const live = new LiveService(new HttpAdsbSource({ userAgent: config.userAgent }));
+const adsb = new HttpAdsbSource({ userAgent: config.userAgent });
+const live = new LiveService(args.has('--sim') ? new SimAdsbSource({ flights, nav: () => nav, fallback: adsb }) : adsb);
+if (args.has('--sim')) console.log('simulating live positions for stored active flights');
 const airlines = loadAirlines();
 const swim = () => SWIM_DISABLED;
 const resolver = new FlightResolver({ nav: () => nav, flights, live, airlines, swim });

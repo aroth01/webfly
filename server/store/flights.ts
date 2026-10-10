@@ -130,6 +130,11 @@ export class FlightStore {
     return rows.map(toRecord);
   }
 
+  /** Every flight currently airborne. */
+  active(): FlightRecord[] {
+    return (this.db.prepare("SELECT * FROM flights WHERE status = 'active'").all() as unknown as Row[]).map(toRecord);
+  }
+
   /** Delete plans not updated since `cutoffSec` (epoch s); returns the number deleted. */
   purge(cutoffSec: number): number {
     return Number(this.db.prepare('DELETE FROM flights WHERE updated_at < ?').run(cutoffSec).changes);

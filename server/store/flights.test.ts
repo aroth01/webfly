@@ -23,6 +23,8 @@ describe('FlightStore', () => {
     store.upsert({ gufi: 'C', callsign: 'DAL558', status: 'filed', updatedAt: 1 });
     expect(store.byCallsigns(['AAL558', 'ENY558']).map((r) => r.gufi).sort()).toEqual(['A', 'B']);
     expect(store.byCallsigns([])).toEqual([]);
+    store.upsert({ gufi: 'B', callsign: 'ENY558', status: 'active', updatedAt: 2 });
+    expect(store.active().map((r) => r.gufi)).toEqual(['B']);
     expect(store.get('nope')).toBeUndefined();
   });
 
