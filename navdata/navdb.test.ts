@@ -80,3 +80,42 @@ describe('NavDb', () => {
     expect(db.allPrefRoutes()).toHaveLength(1);
   });
 });
+
+describe('NavDb additions', () => {
+  const big: NavDataFile = {
+    ...data,
+    airports: [
+      ...data.airports,
+      { id: 'SML', icao: 'KSML', name: 'SMALL', lat: 32.5, lon: -97.5, rwyFt: 3000, pub: true },
+      { id: 'PRV', name: 'PRIVATE', lat: 32.6, lon: -97.6, rwyFt: 9000, pub: false },
+    ],
+    navaids: [...data.navaids, { id: 'DFW', type: 'VORTAC', name: 'DALLAS', lat: 32.87, lon: -97.03, varDeg: 3 }],
+  };
+  const d = new NavDb(big);
+
+  it('exposes the AIRAC ident', () => {
+    expect(d.navCycle).toBe('2610');
+  });
+
+  it('returns the 2x2 degree tile with big public airports only', () => {
+    const t = d.tile(32, -98);
+    expect(t.cycle).toBe('2610');
+    expect(t.airports).toEqual([{ icao: 'KDFW', lat: 32.897, lon: -97.038 }]);
+    expect(t.navaids).toEqual([{ ident: 'DFW', type: 'VORTAC', lat: 32.87, lon: -97.03 }]);
+    expect(d.tile(34, -98).airports).toEqual([]);
+  });
+
+  it('hands out copies of preferred routes', () => {
+    d.prefRoutes('DFW', 'ORD').pop();
+    expect(d.prefRoutes('DFW', 'ORD')).toHaveLength(1);
+  });
+
+  it('prefers H, then NAR, then the first preferred route', () => {
+    const mk = (types: string[]) =>
+      new NavDb({ ...data, prefRoutes: types.map((type, i) => ({ orig: 'A', dest: 'B', type, route: `R${i}` })) }).bestPrefRoute('A', 'B')?.route;
+    expect(mk(['L', 'H', 'NAR'])).toBe('R1');
+    expect(mk(['L', 'NAR'])).toBe('R1');
+    expect(mk(['TEC', 'L'])).toBe('R0');
+    expect(new NavDb(data).bestPrefRoute('X', 'Y')).toBeUndefined();
+  });
+});

@@ -222,3 +222,11 @@ describe('decodeRoute', () => {
     expect(decodeRoute('', db)).toEqual({ points: [], partial: false, unresolved: [], dropped: [] });
   });
 });
+
+describe('unknown endpoints', () => {
+  it('reports an origin or destination that is not in the nav data', () => {
+    const r = decodeRoute('WPT1', db, { origin: 'ZZZZ', dest: 'QQQQ' });
+    expect(r.unresolved).toEqual(expect.arrayContaining(['ZZZZ', 'QQQQ']));
+    expect(r.partial).toBe(true);
+  });
+});

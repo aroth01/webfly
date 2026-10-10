@@ -75,7 +75,12 @@ export function decodeRoute(text: string, db: NavDb, opts: DecodeOptions = {}): 
   const originId = airportId(opts.origin || tokens[0]);
   const destId = airportId(opts.dest || tokens[tokens.length - 1]);
 
-  if (opts.origin && !sameAirport(tokens[0], opts.origin)) add(airportPoint(opts.origin));
+  const addEndpoint = (id: string) => {
+    const p = airportPoint(id);
+    if (p) add(p);
+    else unresolved.push(id);
+  };
+  if (opts.origin && !sameAirport(tokens[0], opts.origin)) addEndpoint(opts.origin);
 
   for (let k = 0; k < tokens.length; k++) {
     const tok = tokens[k] as string;
@@ -180,7 +185,7 @@ export function decodeRoute(text: string, db: NavDb, opts: DecodeOptions = {}): 
     else unresolved.push(tok);
   }
 
-  if (opts.dest && !sameAirport(tokens[tokens.length - 1], opts.dest)) add(airportPoint(opts.dest));
+  if (opts.dest && !sameAirport(tokens[tokens.length - 1], opts.dest)) addEndpoint(opts.dest);
 
   const dropped = dropZigZags(points);
   return { points, partial: unresolved.length > 0 || dropped.length > 0, unresolved, dropped };

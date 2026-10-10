@@ -7,3 +7,9 @@ export interface RoutePoint {
   kind: RoutePointKind;
   via?: string; // airway or procedure that produced it, e.g. "J52", "ANJLL4"
 }
+
+export interface NavTile {
+  cycle: string; // AIRAC ident, e.g. "2610"
+  navaids: Array<{ ident: string; type: string; lat: number; lon: number }>;
+  airports: Array<{ icao: string; lat: number; lon: number }>;
+}

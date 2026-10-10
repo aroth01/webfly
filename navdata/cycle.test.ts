@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { csvZipUrl, cycleFor, nextCycle } from './cycle.ts';
+import { airacIdent, csvZipUrl, cycleFor, nextCycle } from './cycle.ts';
 
 describe('cycleFor', () => {
   it('maps dates to the 28-day cycle in force', () => {
@@ -21,5 +21,16 @@ describe('nextCycle', () => {
 describe('csvZipUrl', () => {
   it('builds the FAA download URL', () => {
     expect(csvZipUrl('2026-10-01', 'APT')).toBe('https://nfdc.faa.gov/webContent/28DaySub/extra/01_Oct_2026_APT_CSV.zip');
+  });
+});
+
+describe('airacIdent', () => {
+  it('numbers cycles within their year', () => {
+    expect(airacIdent('2026-10-01')).toBe('2610');
+    expect(airacIdent('2026-10-29')).toBe('2611');
+    expect(airacIdent('2026-01-22')).toBe('2601');
+    expect(airacIdent('2026-12-24')).toBe('2613');
+    expect(airacIdent('2027-01-21')).toBe('2701');
+    expect(airacIdent('2025-12-25')).toBe('2513');
   });
 });

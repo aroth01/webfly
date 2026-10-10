@@ -1,4 +1,6 @@
 import { distanceNm, type LatLon } from '../shared/geo.ts';
+import type { NavTile } from '../shared/types.ts';
+import { airacIdent } from './cycle.ts';
 import type { AirportRec, AirwayRec, FixRec, NavaidRec, NavDataFile, PrefRouteRec, ProcRec } from './types.ts';
 
 export interface PointHit {
@@ -38,9 +40,12 @@ export class NavDb {
   private readonly procs = { SID: new Map<string, ProcRec>(), STAR: new Map<string, ProcRec>() };
   private readonly procsByBase = { SID: new Map<string, ProcRec>(), STAR: new Map<string, ProcRec>() };
   private readonly pref = new Map<string, PrefRouteRec[]>();
+  private readonly airportList: AirportRec[];
+  private readonly tiles = new Map<string, NavTile>();
 
   constructor(data: NavDataFile) {
     this.cycle = data.cycle;
+    this.airportList = data.airports;
     for (const a of data.airports) {
       this.airports.set(a.id, a);
       if (a.icao) this.airports.set(a.icao, a);
@@ -109,8 +114,41 @@ export class NavDb {
     return [this.procsByBase.SID.get(base), this.procsByBase.STAR.get(base)].filter((p) => p !== undefined);
   }
 
+  /** Preferred routes for the pair, as a fresh array (callers may sort or mutate it). */
   prefRoutes(orig: string, dest: string): PrefRouteRec[] {
-    return this.pref.get(`${orig}-${dest}`) ?? [];
+    return [...(this.pref.get(`${orig}-${dest}`) ?? [])];
+  }
+
+  /** The preferred route to use for a pair: high-altitude (H) or North Atlantic (NAR) first, else the first listed. */
+  bestPrefRoute(orig: string, dest: string): PrefRouteRec | undefined {
+    const all = this.pref.get(`${orig}-${dest}`) ?? [];
+    return all.find((r) => r.type === 'H') ?? all.find((r) => r.type === 'NAR') ?? all[0];
+  }
+
+  /** AIRAC ident of this cycle ("2610"). */
+  get navCycle(): string {
+    return airacIdent(this.cycle);
+  }
+
+  /**
+   * Navaids and airports in the 2 degree x 2 degree cell whose south-west corner is (lat0, lon0). Airports are
+   * limited to public-use runways of at least 4,000 ft (spec section 8). Cells are built once and cached.
+   */
+  tile(lat0: number, lon0: number): NavTile {
+    const key = `${lat0},${lon0}`;
+    let t = this.tiles.get(key);
+    if (!t) {
+      const inCell = (p: { lat: number; lon: number }) => p.lat >= lat0 && p.lat < lat0 + 2 && p.lon >= lon0 && p.lon < lon0 + 2;
+      t = {
+        cycle: this.navCycle,
+        navaids: [...this.navaids.values()].flat().filter(inCell).map((n) => ({ ident: n.id, type: n.type, lat: n.lat, lon: n.lon })),
+        airports: this.airportList
+          .filter((a) => a.pub && a.rwyFt >= 4000 && inCell(a))
+          .map((a) => ({ icao: a.icao ?? a.id, lat: a.lat, lon: a.lon })),
+      };
+      this.tiles.set(key, t);
+    }
+    return t;
   }
 
   allPrefRoutes(): PrefRouteRec[] {
