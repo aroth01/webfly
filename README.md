@@ -51,6 +51,24 @@ With an SCDS subscription:
 
 Set `SWIM_RECORD_DIR=data/swim-recordings` to keep every payload that updated a flight, for replay and test fixtures. `/api/health` reports the connection, kept/dropped messages per minute and reconnects.
 
+## Deploy to Fly.io
+
+The image bundles the server, the built web app and the NASR cycle in force at build time (`Dockerfile`); `fly.toml` runs one always-on `shared-cpu-1x` machine with a 1 GB volume at `/data` for the flight-plan database and newer nav cycles.
+
+    fly launch --no-deploy --copy-config --name <your-app>   # app names are global; fly.toml says "webfly"
+    fly volumes create webfly_data --size 1 --region iad
+    fly deploy
+    curl https://<your-app>.fly.dev/api/health
+
+Once SCDS credentials exist: `fly secrets set SCDS_URL=… SCDS_VPN=… SCDS_USERNAME=… SCDS_PASSWORD=… SCDS_QUEUE=…`, set `SWIM_ENABLED = "true"` in `fly.toml`, and `fly deploy` again.
+
+Operations:
+
+- `/api/health`: SWIM connection and message rates, the loaded nav cycle, the last NASR update check and its error (if any), stored flights, uptime.
+- The NASR cycle updates itself: a minute after boot and then daily, a newly effective cycle is built in a child process and swapped in without a restart. A failure keeps the current cycle and retries the next day.
+- Flight plans older than 36 h are purged hourly.
+- `fly logs` shows SWIM reconnects, unresolved route tokens and nav updates.
+
 ## Visual regression tests
 
     npx playwright install chromium    # once; or point PLAYWRIGHT_CHROMIUM_EXECUTABLE at an installed Chromium

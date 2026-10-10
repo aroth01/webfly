@@ -1,0 +1,41 @@
+# Fly.io: one always-on machine with a volume (spec §5, §12). App names are global; change "webfly" if taken.
+# First deploy: see "Deploy to Fly.io" in README.md.
+app = "webfly"
+primary_region = "iad"
+
+[build]
+
+[env]
+  PORT = "8080"
+  DATA_DIR = "/data"
+  CONTACT_URL = "https://github.com/aroth01/webfly"
+  # Flip to "true" once the SCDS_* secrets are set (fly secrets set SCDS_URL=… …).
+  SWIM_ENABLED = "false"
+
+[[mounts]]
+  source = "webfly_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # The SWIM consumer needs a persistent connection: never stop the machine.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
