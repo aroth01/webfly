@@ -18,6 +18,13 @@ Requires Node.js 22 or newer.
 
     npm run decode -- "KDFW.AKUNA9.MLC..SGF.WELTS.TRTLL6.KORD"
 
+## Run the app
+
+    npm run dev:server -- --sim  # terminal 1: API on :8080, seeded flights flying simulated positions
+    npm run dev:web              # terminal 2: http://localhost:5173 (also served on your LAN, for a phone)
+
+Type `AA558` (an active seeded flight), `UA5000` (a pick list) or `DL1234` (not yet departed: no position). Without `--sim`, live positions come from adsb.lol, so only flights that are really airborne move.
+
 ## Run the API server
 
     npm run dev:server           # http://localhost:8080, seeded with development flight plans
@@ -31,6 +38,14 @@ Requires Node.js 22 or newer.
 A flight that is airborne right now but has no stored plan resolves through adsb.lol (spec §6.5).
 
 Environment: `PORT` (8080), `DATA_DIR` (`data`), `FLIGHTS_DB` (`$DATA_DIR/flights.db`), `CONTACT_URL` (sent to adsb.lol in the User-Agent).
+
+## Visual regression tests
+
+    npx playwright install chromium    # once; or point PLAYWRIGHT_CHROMIUM_EXECUTABLE at an installed Chromium
+    npm run test:visual                # ND screenshots at 390×844 against web/e2e/__screenshots__/
+    npm run test:visual -- --update-snapshots
+
+The tests serve fixed API responses from `web/e2e/fixtures/` with a frozen clock. Regenerate the fixtures after API changes with `npx tsx scripts/make-e2e-fixtures.ts` (needs the built nav data).
 
 ## Data sources
 
