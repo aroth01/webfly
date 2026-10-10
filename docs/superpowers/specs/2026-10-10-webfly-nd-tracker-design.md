@@ -314,7 +314,7 @@ Landscape: the ND is centered and sized to the viewport height, and the flight s
 ## 11. Testing
 
 - **Route decoder:**
-  - Corpus test: decode every route string in the current cycle's PFR file between airports in the NASR data. Assert that at least 99% decode with no unresolved tokens and no zig-zag drops, and print the most frequent misses. Measured on cycle 2026-10-01: 99.38% (10,726 of 10,793). The misses are mostly Canadian fixes, which are absent from FAA data.
+  - Corpus test: decode every route string in the current cycle's PFR file between airports in the NASR data. Assert that at least 99% decode with no unresolved tokens and no zig-zag drops, and print the most frequent misses. Also assert that no fully decoded route has a point more than 300 nm and more than 0.75 × the origin–destination distance from the origin–destination segment, since a wrong ident match can still resolve. Measured on cycle 2026-10-01: 99.29% (10,716 of 10,793), with no implausible points. The misses are mostly Canadian fixes and procedures, which are absent from FAA data.
   - Golden tests for SID/STAR transitions, airway direction reversal, fix-radial-distance, lat/lon tokens, and duplicate idents.
 - **Unit tests (Vitest):**
   - Input normalization and IATA→ICAO, candidate generation, scoring
