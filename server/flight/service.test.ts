@@ -178,4 +178,35 @@ describe('FlightService', () => {
     const b = await svc.lookup(' aal 558');
     expect(b).toBe(a);
   });
+
+  it('refreshes plans from a live source before resolving, and tries regionals only if needed', async () => {
+    const store = new FlightStore();
+    const asked: string[] = [];
+    const adsb = new AdsbClient({ fetch: (async () => new Response('{"ac":[]}')) as typeof fetch, now: () => NOW_MS });
+    const svc = new FlightService({
+      store,
+      nav: () => nav,
+      adsb,
+      now: () => NOW_MS,
+      refresh: async (cs) => {
+        asked.push(cs);
+        if (cs === 'ENY558') store.upsert(row({ gufi: 'r1', callsign: 'ENY558', routeText: 'KAAA..WPT1..KBBB' }));
+      },
+    });
+    const r = await svc.lookup('AA558');
+    expect(asked).toEqual(['AAL558', 'ENY558']); // stopped at the first candidate that matched
+    expect(r.kind === 'view' && r.view.callsign).toBe('ENY558');
+  });
+
+  it('re-decodes when the filed route text changes without a new amendment time', async () => {
+    const store = new FlightStore();
+    store.upsert(row({ amendedAt: undefined }));
+    const { svc } = make({ store });
+    const a = await svc.lookup('AAL558');
+    expect(a.kind === 'view' && a.view.route.points.map((p) => p.ident)).toEqual(['KAAA', 'WPT1', 'WPT2', 'KBBB']);
+    store.upsert(row({ amendedAt: undefined, routeText: 'KAAA..WPT2..KBBB' }));
+    const fresh = make({ store }).svc; // new service: no 60 s view cache, shared route key logic
+    const b = await fresh.lookup('AAL558');
+    expect(b.kind === 'view' && b.view.route.points.map((p) => p.ident)).toEqual(['KAAA', 'WPT2', 'KBBB']);
+  });
 });

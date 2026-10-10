@@ -1,7 +1,7 @@
 import { type NavDb } from '../../navdata/navdb.ts';
 import type { Airport, FlightChoice, FlightView, RoutePoint } from '../../shared/types.ts';
 import type { AdsbClient } from '../live/adsb.ts';
-import { operatorName } from '../resolve/normalize.ts';
+import { candidateCallsigns, normalizeQuery, operatorName } from '../resolve/normalize.ts';
 import { resolve } from '../resolve/resolve.ts';
 import { decodeRoute, type DecodedRoute } from '../route/decode.ts';
 import type { FlightRow, FlightStore } from '../store/flights.ts';
@@ -28,6 +28,8 @@ export interface FlightServiceDeps {
   now?: () => number; // epoch ms
   log?: (msg: string) => void;
   swim?: () => SwimStatus;
+  /** Fetch fresh flight plans for a callsign into the store (e.g. from AeroAPI). Must not throw. */
+  refresh?: (callsign: string) => Promise<void>;
 }
 
 const MESSAGES: Record<string, string> = {
@@ -61,7 +63,17 @@ export class FlightService {
   }
 
   private async compute(query: string): Promise<Lookup> {
-    const r = resolve(query, this.deps.store, Math.floor(this.now() / 1000));
+    const nowSec = () => Math.floor(this.now() / 1000);
+    let r = resolve(query, this.deps.store, nowSec());
+    if (this.deps.refresh && r.kind !== 'error') {
+      // Mainline first; try the regional operators only while nothing has matched.
+      const candidates = r.kind === 'none' ? r.candidates : (candidatesFor(query) ?? []);
+      for (const cs of candidates) {
+        await this.deps.refresh(cs);
+        r = resolve(query, this.deps.store, nowSec());
+        if (r.kind !== 'none') break;
+      }
+    }
     switch (r.kind) {
       case 'error':
         return { kind: 'error', status: 400, code: r.code, message: MESSAGES[r.code] };
@@ -96,7 +108,7 @@ export class FlightService {
     if (dest) view.dest = dest;
 
     if (row.routeText) {
-      const decoded = this.decode(`${row.gufi}|${row.amendedAt ?? 0}|${nav.cycle}`, row.routeText, nav, row.origin, row.dest, row.callsign);
+      const decoded = this.decode(`${row.gufi}|${row.amendedAt ?? 0}|${row.routeText}|${nav.cycle}`, row.routeText, nav, row.origin, row.dest, row.callsign);
       view.route = { source: 'filed', text: row.routeText, points: decoded.points, partial: decoded.partial };
       if (row.amendedAt !== undefined) view.route.amendedAt = row.amendedAt;
     } else {
@@ -168,6 +180,11 @@ export class FlightService {
     if (swim?.enabled && (swim.lastMessageAt === undefined || this.now() - swim.lastMessageAt > SWIM_STALE_MS)) view.degraded = 'swim_delayed';
     return view;
   }
+}
+
+function candidatesFor(query: string): string[] | undefined {
+  const n = normalizeQuery(query);
+  return n.ok ? candidateCallsigns(n.airline, n.number) : undefined;
 }
 
 function airport(nav: NavDb, id: string | undefined): Airport | undefined {

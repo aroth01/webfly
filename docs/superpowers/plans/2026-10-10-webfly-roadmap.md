@@ -16,6 +16,8 @@ Plans are numbered in execution order.
 
 ## Notes
 
+- **Filed-route source changed (2026-10-10):** filed routes now come from FlightAware AeroAPI (`server/aeroapi/`), keyed by `AEROAPI_KEY`, feeding the same SQLite store. Plan 4 (SWIM) is shelved; it is only needed if the app goes public, since the Personal tier is licensed for personal use.
+
 - **Plan 4 is gated on FAA access.** Until it lands, Plans 2, 3 and 5 still produce a working app: flights resolve through seeded plans in development, and through the §6.5 fallback (expected route) in production.
 - **Start the SCDS sign-up now** (spec §14). It has the longest lead time of anything on this list.
 - **Plan 2 will extend `NavDb`** with a spatial tile query for `/api/nav/:cycle/:lat/:lon` (spec §8). Plan 1 deliberately leaves that out.

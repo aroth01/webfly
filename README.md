@@ -23,6 +23,13 @@ Requires Node.js 22.13 or newer (`node:sqlite`).
 Open `/f/AA558`, or `/f/AA558?fixture` to run the ND on canned data without the API.
 `npm run build:web && npm start` serves the SPA and the API from one process.
 
+## Filed routes (FlightAware AeroAPI)
+
+Create an AeroAPI key, copy `env.example` to `.env` and set `AEROAPI_KEY`. The server then fetches each looked-up
+flight's filed route (cached 2 min per callsign, at most 8 calls/min, paused 60 s after a 429) and stores it in
+SQLite. On Fly, use `fly secrets set AEROAPI_KEY=...`. The Personal tier is licensed for personal use only, so keep
+the deployment private.
+
 ## Deploy (Fly.io)
 
     fly apps create <name> && fly volumes create webfly_data --size 1 --region iad

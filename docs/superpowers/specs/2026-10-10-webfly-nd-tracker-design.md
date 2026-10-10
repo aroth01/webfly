@@ -36,7 +36,7 @@ WebFly is a free, public, mobile-first web app. The user types a flight number (
 
 | Decision | Choice | Why |
 |---|---|---|
-| Filed-route source | **FAA SWIM via SCDS (SFDPS feed)** | The only free source of real filed and amended routes. FlightAware AeroAPI's free Personal tier is licensed for personal use only, not a public site; Standard tier costs at least $100/mo. |
+| Filed-route source | **Changed 2026-10-10: FlightAware AeroAPI (Personal tier, private use)** instead of FAA SWIM. The original choice, SWIM via SCDS, remains the only free source suitable for a public site. | The only free source of real filed and amended routes. FlightAware AeroAPI's free Personal tier is licensed for personal use only, not a public site; Standard tier costs at least $100/mo. |
 | Live position source | **adsb.lol API** | Free, ODbL-licensed, has a callsign lookup. Its docs say "You can use the API for free" and ask production users to make contact. |
 | Nav database | **FAA NASR 28-day subscription (CSV)** | Public domain, complete for the US (navaids, fixes, airways, SIDs/STARs, preferred routes). |
 | Hosting | **Fly.io, one always-on machine** | The SWIM consumer needs a persistent connection, which serverless (Vercel) handles poorly. One process also gives a shared in-memory cache for free. About $6–7/mo, versus $25–30+ on Vercel Pro plus Redis. |
