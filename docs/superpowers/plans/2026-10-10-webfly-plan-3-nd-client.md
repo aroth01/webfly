@@ -14,14 +14,15 @@
 2. **Rotation.** Features are projected with true bearings relative to the aircraft's *true* track (or true heading in HDG mode), so magnetic variation only labels the compass and the displayed numbers (TRK/HDG, TO bearing, wind). The compass rose is rotated by the same reference, so labels stay correct.
 3. **Passed legs are hidden.** The green line starts at the active leg's FROM point, like an FMS that sequences waypoints; the trail shows where the aircraft has been. With no position the whole route is drawn.
 4. **TO waypoint search window:** forward from the previous active leg, at most 8 legs ahead, so a route that doubles back can't steal the active leg.
-5. **Declutter by range** (the real ND uses pilot-selected filters): ≤ 40 nm shows every navaid and airport with idents; 80 nm hides NDBs; 160 nm also drops airport idents; 320 nm shows VOR-family navaids without idents. Route waypoints always win over DB symbols with the same ident.
+5. **Declutter by range** (the real ND uses pilot-selected filters): ≤ 40 nm shows every navaid and every tile airport (runway ≥ 4,000 ft) with idents; 80 nm hides NDBs and airports under 7,000 ft; 160 nm keeps VOR-family navaids and airports of 9,000 ft or more, without airport idents; 320 nm shows VOR-family navaids without idents. Route waypoints always win over DB symbols with the same ident, and database idents that would overlap a label already drawn are left out. Tiles therefore carry each airport's `rwyFt` (an additive field on spec §8's `NavTile`).
 6. **Wind** is shown magnetic, with the arrow pointing where the wind blows *to*, rotated with the display. ETA is UTC `HH:MM`, as on the flight deck. GS below 50 kt shows ETA `---`.
 7. **Long legs are densified** for drawing only (every ~25 nm along the great circle), because the azimuthal projection curves great circles that don't pass the aircraft.
 8. **Trail** = `/api/trail` fetched once per flight, then extended with each new live position that is newer and has moved more than 0.1 nm.
 9. **Range** buttons, pinch and mouse wheel step through 10–320 nm. The default (80 nm, or 40 nm below 10,000 ft) is chosen once, at the first position, and never overrides the user afterwards.
 10. **No position:** the ND centres on the origin airport (else the first route point), north-up, with an amber `NO POSITION` flag.
 11. **Rate limiting:** a 429 on `/api/live` switches polling to 15 s for one minute (spec §10). `/api/nav` 404 `stale_cycle` re-fetches the flight to learn the new cycle.
-12. **Simulated live data for development:** `npm run dev:server -- --sim` flies the seeded active flights along their decoded routes at their filed ETAs and adds synthetic traffic, so the ND can be tried without a real aircraft aloft. Production never uses it.
+12. **Compass labels** are tens of degrees without a leading zero (`3`, `27`), as on the Airbus rose; spec §9.3's "2-digit" example (`27`) reads the same.
+13. **Simulated live data for development:** `npm run dev:server -- --sim` flies the seeded active flights along their decoded routes at their filed ETAs and adds synthetic traffic, so the ND can be tried without a real aircraft aloft. Production never uses it.
 
 ## File structure
 

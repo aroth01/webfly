@@ -79,7 +79,7 @@ export class NavDb {
     };
     for (const n of data.navaids) tileOf(n.lat, n.lon).navaids.push({ ident: n.id, type: n.type, lat: n.lat, lon: n.lon });
     for (const a of data.airports) {
-      if (a.rwyFt >= TILE_MIN_RWY_FT) tileOf(a.lat, a.lon).airports.push({ icao: a.icao ?? a.id, lat: a.lat, lon: a.lon });
+      if (a.rwyFt >= TILE_MIN_RWY_FT) tileOf(a.lat, a.lon).airports.push({ icao: a.icao ?? a.id, lat: a.lat, lon: a.lon, rwyFt: a.rwyFt });
     }
     for (const r of data.prefRoutes) {
       const key = `${r.orig}-${r.dest}`;

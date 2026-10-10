@@ -3,19 +3,24 @@ import { ARC_HALF_SPAN_DEG, ndLayout } from './layout.ts';
 import { makeProjector, polar } from './projection.ts';
 
 describe('ndLayout', () => {
-  it('fits a ~100° arc across a portrait phone and puts the aircraft near 80% of the ND height', () => {
-    const l = ndLayout(390, 560);
-    const arcEnd = polar(l, ARC_HALF_SPAN_DEG, l.radius);
-    expect(arcEnd.x).toBeLessThanOrEqual(390);
-    expect(arcEnd.x).toBeGreaterThan(380);
-    const ndHeight = l.cy - l.top + l.radius * 0.27;
-    expect((l.cy - l.top) / ndHeight).toBeGreaterThan(0.75);
-    expect((l.cy - l.top) / ndHeight).toBeLessThan(0.85);
+  it('fits a ~100° arc across a short portrait canvas, aircraft near 80% of the ND height', () => {
+    const l = ndLayout(390, 390);
+    expect(polar(l, ARC_HALF_SPAN_DEG, l.radius).x).toBeLessThanOrEqual(390);
+    expect(polar(l, ARC_HALF_SPAN_DEG, l.radius).x).toBeGreaterThan(380);
+    expect(l.cy / 390).toBeGreaterThan(0.75);
+    expect(l.cy / 390).toBeLessThan(0.85);
+  });
+
+  it('grows on a tall canvas until 80° of arc remain visible, anchored at the top', () => {
+    const l = ndLayout(390, 700);
+    expect(l.top).toBe(0);
+    expect(polar(l, 40, l.radius).x).toBeCloseTo(384, 0);
+    expect(l.cy + l.radius * 0.27).toBeLessThanOrEqual(700);
   });
 
   it('is height-bound in landscape', () => {
     const l = ndLayout(844, 360);
-    expect(l.cy + l.radius * 0.27).toBeLessThanOrEqual(360.001);
+    expect(l.cy + l.radius * 0.27).toBeCloseTo(360, 6);
     expect(l.cx).toBe(422);
   });
 });

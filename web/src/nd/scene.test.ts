@@ -31,8 +31,9 @@ const tiles: NavTile[] = [
       { ident: 'NN', type: 'NDB', lat: 31, lon: -97.5 },
     ],
     airports: [
-      { icao: 'KAAA', lat: 30, lon: -100 },
-      { icao: 'KCCC', lat: 29.5, lon: -97 },
+      { icao: 'KAAA', lat: 30, lon: -100, rwyFt: 12000 },
+      { icao: 'KCCC', lat: 29.5, lon: -97, rwyFt: 8000 },
+      { icao: '2E5', lat: 29.6, lon: -97.2, rwyFt: 5000 },
     ],
   },
 ];
@@ -66,6 +67,7 @@ describe('buildScene', () => {
     expect(s.navaids.map((n) => n.ident)).toEqual(['XYZ']);
     expect(s.airports.map((a) => a.icao)).toEqual(['KCCC']);
     expect(buildScene(input({ range: 40 })).navaids.map((n) => n.ident)).toEqual(['XYZ', 'NN']);
+    expect(buildScene(input({ range: 40 })).airports.map((a) => a.icao)).toEqual(['KCCC', '2E5']);
     expect(buildScene(input({ range: 320 })).airports).toEqual([]);
   });
 

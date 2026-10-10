@@ -89,7 +89,7 @@ export type Trail = Array<[t: number, lat: number, lon: number, alt: number | nu
 export interface NavTile {
   cycle: string; // AIRAC ident
   navaids: Array<{ ident: string; type: string; lat: number; lon: number }>;
-  airports: Array<{ icao: string; lat: number; lon: number }>;
+  airports: Array<{ icao: string; lat: number; lon: number; rwyFt: number }>; // rwyFt: longest runway
 }
 
 export interface Health {

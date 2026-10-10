@@ -89,7 +89,7 @@ describe('API', () => {
     const res = await app.request('/api/nav/2610/30/-100');
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
-    expect(await res.json()).toEqual({ cycle: '2610', navaids: [], airports: [{ icao: 'KAAA', lat: 30, lon: -100 }] });
+    expect(await res.json()).toEqual({ cycle: '2610', navaids: [], airports: [{ icao: 'KAAA', lat: 30, lon: -100, rwyFt: 10000 }] });
     expect(await (await app.request('/api/nav/2610/30/-98')).json()).toEqual({
       cycle: '2610',
       navaids: [{ ident: 'VRA', type: 'VORTAC', lat: 30, lon: -98 }],

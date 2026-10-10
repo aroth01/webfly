@@ -115,7 +115,10 @@ export function buildScene(input: SceneInput): Scene {
   for (const t of input.tiles) {
     for (const n of t.navaids) if (declutter.navaidTypes.has(n.type) && !routeIdents.has(n.ident)) navaids.push(n);
     if (declutter.airports) {
-      for (const a of t.airports) if (!routeIdents.has(a.icao) && a.icao !== flight.origin?.icao && a.icao !== flight.dest?.icao) airports.push(a);
+      for (const a of t.airports) {
+        if (a.rwyFt < declutter.minRwyFt) continue;
+        if (!routeIdents.has(a.icao) && a.icao !== flight.origin?.icao && a.icao !== flight.dest?.icao) airports.push(a);
+      }
     }
   }
 

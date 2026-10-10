@@ -32,16 +32,21 @@ export function drawNd(ctx: Ctx, layout: NdLayout, scene: Scene): void {
   ctx.fillRect(0, 0, width, height);
   const project = makeProjector(scene.center, scene.upTrue, scene.range, layout);
 
+  // The map shows inside the compass arc and in the band below the arc's ends, down to the bottom edge.
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  const arcEndY = cy - r * Math.cos((ARC_DRAW_DEG * Math.PI) / 180);
+  ctx.rect(0, arcEndY, width, height - arcEndY);
   ctx.clip();
+  const labels = new LabelSpace();
   drawRangeArcs(ctx, layout);
   drawTrail(ctx, scene, project);
   drawRouteLine(ctx, scene, project);
-  drawDatabase(ctx, scene, project, fs);
-  drawRoutePoints(ctx, scene, project, fs);
-  drawTraffic(ctx, scene, project, fs);
+  const db = drawDatabaseSymbols(ctx, scene, project);
+  drawRoutePoints(ctx, scene, project, fs, labels);
+  drawTraffic(ctx, scene, project, fs, labels);
+  drawDatabaseLabels(ctx, scene, db, fs, labels);
   ctx.restore();
 
   drawCompass(ctx, layout, scene, fs);
@@ -89,43 +94,79 @@ function drawRouteLine(ctx: Ctx, scene: Scene, project: Project): void {
   }
 }
 
-function drawDatabase(ctx: Ctx, scene: Scene, project: Project, fs: number): void {
-  const { declutter } = scene;
+/** Rectangles already covered by text; lower-priority labels that would overlap are left out. */
+class LabelSpace {
+  private readonly boxes: Array<[number, number, number, number]> = [];
+
+  /** Claim the box if it is free (or `force`), returning whether the label should be drawn. */
+  claim(x: number, y: number, w: number, h: number, force = false): boolean {
+    const box: [number, number, number, number] = [x - 1, y - h, x + w + 1, y + 2];
+    if (!force && this.boxes.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) return false;
+    this.boxes.push(box);
+    return true;
+  }
+}
+
+function label(ctx: Ctx, labels: LabelSpace, s: string, x: number, y: number, color: string, size: number, force: boolean): void {
+  ctx.font = `${size}px ${MONO}`;
+  if (labels.claim(x, y, ctx.measureText(s).width, size * 0.8, force)) text(ctx, s, x, y, color, size);
+}
+
+type Placed = Array<{ ident: string; x: number; y: number }>;
+
+function drawDatabaseSymbols(ctx: Ctx, scene: Scene, project: Project): { airports: Placed; navaids: Placed } {
+  const airports: Placed = [];
+  const navaids: Placed = [];
   for (const a of scene.airports) {
     const s = project(a);
     if (!s) continue;
     airportSymbol(ctx, s.x, s.y, COLORS.magenta);
-    if (declutter.airportIdents) text(ctx, a.icao, s.x + 10, s.y - 7, COLORS.magenta, fs * 0.82);
+    airports.push({ ident: a.icao, x: s.x, y: s.y });
   }
   for (const n of scene.navaids) {
     const s = project(n);
     if (!s) continue;
     navaidSymbol(ctx, s.x, s.y, n.type, COLORS.magenta);
-    if (declutter.navaidIdents) text(ctx, n.ident, s.x + 10, s.y - 7, COLORS.magenta, fs * 0.82);
+    navaids.push({ ident: n.ident, x: s.x, y: s.y });
+  }
+  return { airports, navaids };
+}
+
+function drawDatabaseLabels(ctx: Ctx, scene: Scene, db: { airports: Placed; navaids: Placed }, fs: number, labels: LabelSpace): void {
+  if (scene.declutter.navaidIdents) for (const n of db.navaids) label(ctx, labels, n.ident, n.x + 10, n.y - 7, COLORS.magenta, fs * 0.82, false);
+  if (scene.declutter.airportIdents) for (const a of db.airports) label(ctx, labels, a.ident, a.x + 10, a.y - 7, COLORS.magenta, fs * 0.82, false);
+}
+
+function drawRoutePoints(ctx: Ctx, scene: Scene, project: Project, fs: number, labels: LabelSpace): void {
+  // The TO waypoint and the airports label first, so they never give way to a neighbour.
+  const order = (role: string) => (role === 'to' ? 0 : role === 'airport' ? 1 : 2);
+  const placed = scene.routePoints
+    .map((p) => ({ p, s: project(p) }))
+    .filter((e): e is { p: (typeof scene.routePoints)[number]; s: NonNullable<ReturnType<Project>> } => e.s !== null)
+    .sort((a, b) => order(a.p.role) - order(b.p.role));
+  for (const { p, s } of placed) {
+    if (p.role === 'airport') airportSymbol(ctx, s.x, s.y, COLORS.white);
+    else waypointStar(ctx, s.x, s.y, p.role === 'to' ? COLORS.white : COLORS.green);
+  }
+  for (const { p, s } of placed) {
+    const color = p.role === 'wpt' ? COLORS.green : COLORS.white;
+    label(ctx, labels, p.ident, s.x + 10, s.y - 8, color, fs * 0.9, p.role !== 'wpt');
   }
 }
 
-function drawRoutePoints(ctx: Ctx, scene: Scene, project: Project, fs: number): void {
-  for (const p of scene.routePoints) {
-    const s = project(p);
-    if (!s) continue;
-    if (p.role === 'airport') {
-      airportSymbol(ctx, s.x, s.y, COLORS.white);
-      text(ctx, p.ident, s.x + 11, s.y - 8, COLORS.white, fs * 0.9);
-      continue;
-    }
-    const color = p.role === 'to' ? COLORS.white : COLORS.green;
-    waypointStar(ctx, s.x, s.y, color);
-    text(ctx, p.ident, s.x + 10, s.y - 8, color, fs * 0.9);
-  }
-}
-
-function drawTraffic(ctx: Ctx, scene: Scene, project: Project, fs: number): void {
+function drawTraffic(ctx: Ctx, scene: Scene, project: Project, fs: number, labels: LabelSpace): void {
   for (const t of scene.traffic) {
     const s = project(t);
     if (!s) continue;
     trafficSymbol(ctx, s.x, s.y, t.proximate);
-    if (t.relAlt) text(ctx, t.relAlt, s.x, t.above ? s.y - 10 : s.y + 10 + fs * 0.8, COLORS.white, fs * 0.8, 'center');
+    if (t.relAlt) {
+      const size = fs * 0.8;
+      ctx.font = `${size}px ${MONO}`;
+      const w = ctx.measureText(t.relAlt).width;
+      const y = t.above ? s.y - 10 : s.y + 10 + size * 0.8;
+      labels.claim(s.x - w / 2, y, w, size * 0.8, true);
+      text(ctx, t.relAlt, s.x, y, COLORS.white, size, 'center');
+    }
     if (t.trend) trendArrow(ctx, s.x + 11, s.y, t.trend);
   }
 }
@@ -164,7 +205,7 @@ function drawCompass(ctx: Ctx, l: NdLayout, scene: Scene, fs: number): void {
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(l.cx, l.cy - r + 4);
-  ctx.lineTo(l.cx, l.cy - r - 20);
+  ctx.lineTo(l.cx, l.cy - r - 16);
   ctx.stroke();
 
   if (!scene.noPosition) {
@@ -186,8 +227,9 @@ function drawCompass(ctx: Ctx, l: NdLayout, scene: Scene, fs: number): void {
     ctx.restore();
   }
 
+  // Centre of the second data line, between the wind and the TO bearing.
   const label = scene.mode === 'NORTH' ? 'NORTH UP' : scene.mode;
-  const y = l.top + fs * 1.1;
+  const y = l.top + fs * 1.1 + fs * 1.45;
   if (scene.mode === 'NORTH') {
     text(ctx, label, l.cx, y, COLORS.white, fs * 0.85, 'center');
   } else {
