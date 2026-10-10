@@ -49,6 +49,24 @@ describe('NavDb', () => {
     expect(db.procedure('AKUNA9', 'STAR')).toBeUndefined();
   });
 
+  it('lists navaids and long-runway airports in a 2-degree tile', () => {
+    const tileDb = new NavDb({
+      ...data,
+      airports: [
+        ...data.airports,
+        { id: 'SHT', name: 'SHORT FIELD', lat: 32.5, lon: -97.5, rwyFt: 3200, pub: true },
+        { id: 'FTW', icao: 'KFTW', name: 'FORT WORTH MEACHAM', lat: 32.82, lon: -97.36, rwyFt: 7502, pub: true },
+      ],
+      navaids: [...data.navaids, { id: 'TTT', type: 'VOR/DME', name: 'MAVERICK', lat: 32.86, lon: -97.04, varDeg: 6 }],
+    });
+    expect(tileDb.airac).toBe('2610');
+    const tile = tileDb.tile(32, -98);
+    expect(tile.airports.map((a) => a.icao).sort()).toEqual(['KDFW', 'KFTW']);
+    expect(tile.navaids).toEqual([{ ident: 'TTT', type: 'VOR/DME', lat: 32.86, lon: -97.04 }]);
+    expect(tileDb.tile(46, -98).navaids.map((n) => n.ident)).toEqual(['AA']);
+    expect(tileDb.tile(10, 10)).toEqual({ navaids: [], airports: [] });
+  });
+
   it('looks up preferred routes by airport pair', () => {
     expect(db.prefRoutes('DFW', 'ORD')).toHaveLength(1);
     expect(db.prefRoutes('ORD', 'DFW')).toHaveLength(0);

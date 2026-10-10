@@ -21,3 +21,12 @@ export function csvZipUrl(cycle: string, category: string): string {
   const prefix = `${d}_${MONTHS[Number(m) - 1]}_${y}`;
   return `https://nfdc.faa.gov/webContent/28DaySub/extra/${prefix}_${category}_CSV.zip`;
 }
+
+/** AIRAC-style ident of a cycle: two-digit year plus its index among the cycles effective that year ("2026-10-01" → "2610"). */
+export function airacIdent(cycle: string): string {
+  const t = Date.parse(`${cycle}T00:00:00Z`);
+  const year = new Date(t).getUTCFullYear();
+  const firstOfYear = EPOCH + Math.ceil((Date.UTC(year, 0, 1) - EPOCH) / CYCLE_MS) * CYCLE_MS;
+  const index = Math.floor((t - firstOfYear) / CYCLE_MS) + 1;
+  return `${String(year % 100).padStart(2, '0')}${String(index).padStart(2, '0')}`;
+}

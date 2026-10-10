@@ -1,4 +1,6 @@
 import { distanceNm, type LatLon } from '../shared/geo.ts';
+import type { NavTile } from '../shared/types.ts';
+import { airacIdent } from './cycle.ts';
 import type { AirportRec, AirwayRec, FixRec, NavaidRec, NavDataFile, PrefRouteRec, ProcRec } from './types.ts';
 
 export interface PointHit {
@@ -7,6 +9,13 @@ export interface PointHit {
   lon: number;
   kind: 'fix' | 'navaid' | 'airport';
 }
+
+/** Nav tiles are 2x2 degree cells keyed by their even-integer south-west corner. */
+export const TILE_DEG = 2;
+/** Airports shorter than this are left off the ND (spec §8). */
+const TILE_MIN_RWY_FT = 4000;
+const tileKey = (lat: number, lon: number) =>
+  `${Math.floor(lat / TILE_DEG) * TILE_DEG},${Math.floor(lon / TILE_DEG) * TILE_DEG}`;
 
 /** Procedure names end in a version digit; the base name lets "AKUNA8" find the current "AKUNA9". */
 const baseName = (name: string) => name.replace(/\d+$/, '');
@@ -27,6 +36,7 @@ function nearest<T extends LatLon>(items: T[], ref?: LatLon): T | undefined {
 
 export class NavDb {
   readonly cycle: string;
+  readonly airac: string;
   private readonly airports = new Map<string, AirportRec>();
   private readonly fixes = new Map<string, FixRec>();
   private readonly navaids = new Map<string, NavaidRec[]>();
@@ -34,9 +44,11 @@ export class NavDb {
   private readonly procs = { SID: new Map<string, ProcRec>(), STAR: new Map<string, ProcRec>() };
   private readonly procsByBase = { SID: new Map<string, ProcRec>(), STAR: new Map<string, ProcRec>() };
   private readonly pref = new Map<string, PrefRouteRec[]>();
+  private readonly tiles = new Map<string, Omit<NavTile, 'cycle'>>();
 
   constructor(data: NavDataFile) {
     this.cycle = data.cycle;
+    this.airac = airacIdent(data.cycle);
     for (const a of data.airports) {
       this.airports.set(a.id, a);
       if (a.icao) this.airports.set(a.icao, a);
@@ -55,6 +67,19 @@ export class NavDb {
     for (const p of data.procs) {
       this.procs[p.kind].set(p.name, p);
       this.procsByBase[p.kind].set(baseName(p.name), p);
+    }
+    const tileOf = (lat: number, lon: number) => {
+      const key = tileKey(lat, lon);
+      let t = this.tiles.get(key);
+      if (!t) {
+        t = { navaids: [], airports: [] };
+        this.tiles.set(key, t);
+      }
+      return t;
+    };
+    for (const n of data.navaids) tileOf(n.lat, n.lon).navaids.push({ ident: n.id, type: n.type, lat: n.lat, lon: n.lon });
+    for (const a of data.airports) {
+      if (a.rwyFt >= TILE_MIN_RWY_FT) tileOf(a.lat, a.lon).airports.push({ icao: a.icao ?? a.id, lat: a.lat, lon: a.lon });
     }
     for (const r of data.prefRoutes) {
       const key = `${r.orig}-${r.dest}`;
@@ -99,6 +124,11 @@ export class NavDb {
 
   prefRoutes(orig: string, dest: string): PrefRouteRec[] {
     return this.pref.get(`${orig}-${dest}`) ?? [];
+  }
+
+  /** Navaids and long-runway airports in the 2x2 degree cell whose south-west corner is (lat, lon). */
+  tile(lat: number, lon: number): Omit<NavTile, 'cycle'> {
+    return this.tiles.get(tileKey(lat, lon)) ?? { navaids: [], airports: [] };
   }
 
   allPrefRoutes(): PrefRouteRec[] {
