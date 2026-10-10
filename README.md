@@ -30,6 +30,13 @@ flight's filed route (cached 2 min per callsign, at most 8 calls/min, paused 60 
 SQLite. On Fly, use `fly secrets set AEROAPI_KEY=...`. The Personal tier is licensed for personal use only, so keep
 the deployment private.
 
+## Access control
+
+With `ACCESS_CODE` set, `/api/*` (except `/api/health` and `/api/auth`) needs a session: the web app asks for the
+code once and the server sets a signed, HttpOnly, SameSite=Strict cookie (30 days). Wrong guesses are limited to
+5 per minute per IP. Independently, cross-site browser requests are rejected. In production the server refuses to
+start without `ACCESS_CODE` unless `ALLOW_PUBLIC=1`. Without a code (local dev) the API is open.
+
 ## Deploy (Fly.io)
 
     fly apps create <name> && fly volumes create webfly_data --size 1 --region iad
@@ -37,7 +44,7 @@ the deployment private.
 
 The image bakes in the NASR cycle current at build time; the server then checks daily for a new cycle and
 swaps it in at 0901Z on its effective date. `/api/health` reports the nav cycle and the last update error.
-SWIM filed routes (Plan 4) additionally need `SCDS_*` secrets, see the spec section 12.
+Set secrets first: `fly secrets set ACCESS_CODE=... SESSION_SECRET=$(openssl rand -hex 32) AEROAPI_KEY=...`.
 
 ## Try the route decoder
 

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { AeroApiClient } from './aeroapi/client.ts';
 import { createApp } from './api/app.ts';
+import { SessionAuth } from './api/auth.ts';
 import { FlightService } from './flight/service.ts';
 import { AdsbClient } from './live/adsb.ts';
 import { NavManager } from './nav/manager.ts';
@@ -44,7 +45,14 @@ const refresh = aero
     }
   : undefined;
 const service = new FlightService({ store, nav: () => navManager.nav, adsb, log, ...(refresh ? { refresh } : {}) });
-const app = createApp({ service, adsb, nav: () => navManager.nav, navStatus: () => navManager.status, log });
+const accessCode = process.env.ACCESS_CODE;
+if (!accessCode && process.env.NODE_ENV === 'production' && process.env.ALLOW_PUBLIC !== '1') {
+  console.error('Refusing to start in production without ACCESS_CODE (the API spends a metered key). Set ACCESS_CODE, or ALLOW_PUBLIC=1 to run open.');
+  process.exit(1);
+}
+const auth = accessCode ? new SessionAuth({ code: accessCode, ...(process.env.SESSION_SECRET ? { secret: process.env.SESSION_SECRET } : {}) }) : undefined;
+log(auth ? 'API locked: access code required' : 'API open (no ACCESS_CODE set)');
+const app = createApp({ ...(auth ? { auth } : {}) , service, adsb, nav: () => navManager.nav, navStatus: () => navManager.status, log });
 if (mountStatic(app, webDir)) log(`serving web app from ${webDir}`);
 
 // Spec section 6.2: purge flight plans not updated in 36 h, hourly.

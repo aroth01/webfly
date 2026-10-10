@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getJson } from './api.ts';
+import { getJson, UNAUTHORIZED_EVENT } from './api.ts';
 import { addRecent, loadRecent } from './recent.ts';
 
 const res = (body: unknown, status = 200) => (async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -20,6 +20,22 @@ describe('getJson', () => {
       throw new TypeError('failed');
     }) as unknown as typeof fetch;
     expect(await getJson('/x', down)).toMatchObject({ ok: false, status: 0, code: 'network' });
+  });
+});
+
+describe('401 handling', () => {
+  it('maps 401 and signals the app to show the access-code screen', async () => {
+    const seen: Event[] = [];
+    const target = new EventTarget();
+    (globalThis as { window?: unknown }).window = { dispatchEvent: (e: Event) => target.dispatchEvent(e) };
+    target.addEventListener(UNAUTHORIZED_EVENT, (e) => seen.push(e));
+    try {
+      const r = await getJson('/x', res({ error: { code: 'unauthorized', message: 'Access code required.' } }, 401));
+      expect(r).toMatchObject({ ok: false, status: 401, code: 'unauthorized' });
+      expect(seen).toHaveLength(1);
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
   });
 });
 
