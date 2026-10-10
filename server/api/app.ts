@@ -18,6 +18,8 @@ export interface AppDeps {
   nav: () => NavDb;
   swim?: () => SwimHealth;
   limiter?: RateLimiter;
+  /** Trust the `Fly-Client-IP` header. Only safe behind Fly's proxy, which overwrites it; defaults to on when FLY_APP_NAME is set. */
+  trustFlyClientIp?: boolean;
   now?: () => number; // epoch ms
   log?: (msg: string) => void;
 }
@@ -28,9 +30,9 @@ const INT_RE = /^-?\d{1,3}$/;
 
 const fail = (c: Context, status: 400 | 404 | 429 | 500, code: string, message: string) => c.json({ error: { code, message } }, status);
 
-/** The client's address: Fly's header on Fly, else the socket (not available under `app.request`). */
-function clientIp(c: Context): string {
-  const fly = c.req.header('fly-client-ip');
+/** The client's address: Fly's header when trusted, else the socket (not available under `app.request`). */
+function clientIp(c: Context, trustFly: boolean): string {
+  const fly = trustFly ? c.req.header('fly-client-ip') : undefined;
   if (fly) return fly;
   try {
     return getConnInfo(c).remote.address ?? 'unknown';
@@ -42,12 +44,13 @@ function clientIp(c: Context): string {
 export function createApp(deps: AppDeps): Hono {
   const now = deps.now ?? Date.now;
   const startedAt = now();
+  const trustFly = deps.trustFlyClientIp ?? Boolean(process.env.FLY_APP_NAME);
   const limiter = deps.limiter ?? new RateLimiter({ now });
   const app = new Hono();
 
   app.use('/api/*', async (c, next) => {
     if (c.req.path === '/api/health') return next(); // platform health checks must never be throttled
-    if (!limiter.take(clientIp(c))) {
+    if (!limiter.take(clientIp(c, trustFly))) {
       c.header('Retry-After', '10');
       return fail(c, 429, 'rate_limited', 'Too many requests. Slow down.');
     }

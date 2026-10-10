@@ -21,7 +21,7 @@ const data: NavDataFile = {
   prefRoutes: [],
 };
 
-function setup(opts: { upstreamDown?: boolean; limiter?: RateLimiter } = {}) {
+function setup(opts: { upstreamDown?: boolean; limiter?: RateLimiter; trustFly?: boolean } = {}) {
   const nav = new NavDb(data);
   const store = new FlightStore();
   store.upsert({
@@ -43,7 +43,7 @@ function setup(opts: { upstreamDown?: boolean; limiter?: RateLimiter } = {}) {
   }) as typeof fetch;
   const adsb = new AdsbClient({ fetch: fetchFn, now: () => NOW_MS });
   const service = new FlightService({ store, nav: () => nav, adsb, now: () => NOW_MS });
-  const app = createApp({ service, adsb, nav: () => nav, now: () => NOW_MS, ...(opts.limiter ? { limiter: opts.limiter } : {}) });
+  const app = createApp({ service, adsb, nav: () => nav, now: () => NOW_MS, trustFlyClientIp: opts.trustFly ?? true, ...(opts.limiter ? { limiter: opts.limiter } : {}) });
   return { app, store };
 }
 const j = async (res: Response) => (await res.json()) as any;
@@ -144,6 +144,12 @@ describe('rate limiting and fallbacks', () => {
     expect(await limited.json()).toMatchObject({ error: { code: 'rate_limited' } });
     expect((await get(app, '/api/live/AAL558', '8.8.8.8')).status).toBe(200);
     expect((await get(app, '/api/health', '9.9.9.9')).status).toBe(200);
+  });
+  it('ignores a spoofed Fly-Client-IP header unless trusted', async () => {
+    const { app } = setup({ trustFly: false, limiter: new RateLimiter({ capacity: 2, perMinute: 60, now: () => NOW_MS }) });
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) statuses.push((await get(app, '/api/live/AAL558', `10.0.0.${i}`)).status);
+    expect(statuses).toEqual([200, 200, 429, 429]); // every spoofed IP shares the socket's bucket
   });
   it('refills tokens over time', () => {
     let t = 0;
