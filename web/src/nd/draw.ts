@@ -46,7 +46,7 @@ export function drawNd(ctx: CanvasRenderingContext2D, w: number, h: number, scen
 
   const center = scene.center;
   if (!center) {
-    text(ctx, 'NO POSITION', L.cx, L.cy * 0.6, COLORS.amber, mono(L.font * 1.3), 'center');
+    text(ctx, 'NO POSITION', L.cx, L.cy - L.radius * 0.55, COLORS.amber, mono(L.font * 1.3), 'center');
     return;
   }
 
@@ -410,6 +410,6 @@ function drawMessages(ctx: CanvasRenderingContext2D, scene: Scene, L: NdLayout):
     y += L.font * 1.4;
   };
   if (scene.staleSec !== null) line(`POS ${scene.staleSec}S OLD`);
-  if (!scene.hasPosition) text(ctx, 'NO POSITION', L.cx, L.cy * 0.62, COLORS.amber, mono(L.font * 1.3), 'center');
-  if (scene.routeSource === 'none') text(ctx, 'NO FILED ROUTE', L.cx, L.cy * 0.5, COLORS.amber, mono(L.font * 1.1), 'center');
+  if (!scene.hasPosition) text(ctx, 'NO POSITION', L.cx, L.cy - L.radius * 0.55, COLORS.amber, mono(L.font * 1.3), 'center');
+  if (scene.routeSource === 'none') text(ctx, 'NO FILED ROUTE', L.cx, L.cy - L.radius * 0.35, COLORS.amber, mono(L.font * 1.1), 'center');
 }
