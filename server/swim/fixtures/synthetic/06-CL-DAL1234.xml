@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ns5:MessageCollection xmlns:ns2="http://www.fixm.aero/foundation/3.0" xmlns:ns3="http://www.fixm.aero/flight/3.0" xmlns:ns4="http://www.fixm.aero/base/3.0" xmlns:ns5="http://www.faa.aero/nas/3.0">
+  <message xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="ns5:FlightMessageType">
+    <flight xsi:type="ns5:NasFlightType" centre="ZTL" source="CL" system="FDPS1" timestamp="2026-10-10T17:02:45.330Z">
+      <arrival xsi:type="ns5:NasArrivalType" arrivalPoint="KMCO"/>
+      <departure xsi:type="ns5:NasDepartureType" departurePoint="KATL"/>
+      <flightIdentification xsi:type="ns5:NasFlightIdentificationType" computerId="044" aircraftIdentification="DAL1234"/>
+      <gufi codeSpace="urn:uuid">c19a3e55-7b2d-4f60-8e4a-0d9b2f6c3a01</gufi>
+    </flight>
+  </message>
+</ns5:MessageCollection>

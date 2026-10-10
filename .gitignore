@@ -6,3 +6,7 @@ dist/
 *.db
 /data/
 .DS_Store
+.cache/
+web/dist/
+test-results/
+playwright-report/

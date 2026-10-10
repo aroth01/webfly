@@ -1,0 +1,18 @@
+{
+  "_comment": "Development flight plans (npm run dev:server seeds them). Times are minutes relative to startup.",
+  "flights": [
+    { "callsign": "AAL558", "origin": "KDFW", "dest": "KLAX", "acType": "A321", "status": "active", "etdMin": -75, "atdMin": -70, "etaMin": 110, "amendedMin": -40,
+      "route": "KDFW.HRPER3.ABI.J4.BXK..DNERO.ANJLL4.KLAX" },
+    { "callsign": "DAL1234", "origin": "KATL", "dest": "KMCO", "acType": "B739", "status": "filed", "etdMin": 120, "etaMin": 200,
+      "route": "KATL.SMLTZ3.WALET..ZJAYX.GRNCH5.KMCO" },
+    { "callsign": "UAL1979", "origin": "KIAH", "dest": "KDEN", "acType": "B38M", "status": "arrived", "etdMin": -200, "atdMin": -195, "etaMin": -50, "ataMin": -45,
+      "route": "KIAH.STYCK8.DOLEY..ADM..ROLLS..TOTOE..HALEN.NIIXX4.KDEN" },
+    { "callsign": "SKW5000", "origin": "KDEN", "dest": "KSLC", "acType": "CRJ7", "status": "active", "etdMin": -50, "atdMin": -45, "etaMin": 30,
+      "route": "KDEN.SPAZZ4.SAKES..JNC.Q88.HAKMN..BWINE.QWENN5.KSLC", "partial": true },
+    { "callsign": "GJS5000", "origin": "KORD", "dest": "KMSP", "acType": "CRJ5", "status": "active", "etdMin": -40, "atdMin": -35, "etaMin": 40,
+      "route": "KORD.MYKIE..MONNY..MNOSO.BLUEM5.KMSP" },
+    { "callsign": "JBU123", "origin": "KJFK", "dest": "KMIA", "acType": "A320", "status": "filed", "etdMin": 300, "etaMin": 480,
+      "route": "KJFK.WAVEY..EMJAY.Q167.ZJAAY.Q97.DEBRL.CSTAL3.KMIA" },
+    { "callsign": "SWA1312", "origin": "KBOS", "dest": "KDCA", "acType": "B38M", "status": "filed", "etdMin": 60, "etaMin": 150 }
+  ]
+}

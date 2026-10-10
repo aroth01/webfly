@@ -1,0 +1,344 @@
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --white: #fff;
+  --green: #00ff00;
+  --cyan: #00ffff;
+  --amber: #ffb000;
+  --grey: #8a8a8a;
+  --line: #2a2a2a;
+  --panel: #0b0b0b;
+  font-family: 'B612', system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--white);
+}
+body {
+  overscroll-behavior: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+a {
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.screen {
+  min-height: 100%;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+/* Input */
+.input-screen {
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.brand {
+  font-family: 'B612 Mono', monospace;
+  font-size: 15px;
+  letter-spacing: 0.3em;
+  color: var(--grey);
+  margin: 12px 0 15vh;
+}
+.flt-label {
+  display: block;
+  font-family: 'B612 Mono', monospace;
+  font-size: 15px;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.flt-row {
+  display: flex;
+  gap: 10px;
+}
+.flt-input {
+  flex: 1;
+  min-width: 0;
+  font-family: 'B612 Mono', monospace;
+  font-size: 32px;
+  color: var(--cyan);
+  background: var(--bg);
+  border: 2px solid var(--white);
+  border-radius: 4px;
+  padding: 10px 12px;
+  text-transform: uppercase;
+}
+.flt-input::placeholder {
+  color: #2f4f4f;
+}
+.go-btn {
+  font-family: 'B612 Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  min-width: 72px;
+  padding: 0 16px;
+  min-height: 48px;
+  background: var(--bg);
+  color: var(--cyan);
+  border: 2px solid var(--cyan);
+  border-radius: 4px;
+}
+.flt-error {
+  min-height: 1.4em;
+  color: var(--amber);
+  font-size: 15px;
+  margin: 8px 0 0;
+}
+.recent {
+  margin-top: 28px;
+}
+.recent-title {
+  font-family: 'B612 Mono', monospace;
+  font-size: 13px;
+  color: var(--grey);
+  font-weight: 400;
+  margin: 0 0 8px;
+}
+.recent ul,
+.pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.recent ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.recent-btn {
+  font-family: 'B612 Mono', monospace;
+  font-size: 16px;
+  color: var(--green);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px 14px;
+  min-height: 44px;
+}
+.attribution {
+  font-size: 12px;
+  color: var(--grey);
+}
+.input-screen .attribution {
+  margin-top: auto;
+  padding-top: 32px;
+}
+
+/* Pick list and messages */
+.pick-screen,
+.message-screen {
+  max-width: 480px;
+  margin: 0 auto;
+}
+.back-btn {
+  font-family: 'B612 Mono', monospace;
+  font-size: 15px;
+  background: none;
+  border: 0;
+  color: var(--cyan);
+  padding: 10px 0;
+  min-height: 44px;
+}
+.pick-title {
+  font-family: 'B612 Mono', monospace;
+  font-size: 20px;
+  margin: 16px 0 4px;
+}
+.pick-hint {
+  color: var(--grey);
+  margin: 0 0 16px;
+}
+.pick-btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 14px;
+  margin-bottom: 10px;
+  font-family: 'B612 Mono', monospace;
+}
+.pick-cs {
+  color: var(--white);
+  font-size: 18px;
+}
+.pick-route {
+  color: var(--green);
+  font-size: 18px;
+}
+.pick-status {
+  grid-column: 1 / -1;
+  color: var(--grey);
+  font-size: 13px;
+}
+.message-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 70vh;
+}
+.message {
+  font-size: 18px;
+  line-height: 1.5;
+}
+.message-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+/* ND screen: ND on top, flight strip below; strip moves right in landscape (spec §9.2). */
+.nd-screen {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.nd {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.nd canvas {
+  display: block;
+  touch-action: none;
+}
+.range-bar {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.range-btn {
+  pointer-events: auto;
+  width: 48px;
+  height: 48px;
+  font-family: 'B612 Mono', monospace;
+  font-size: 26px;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--white);
+  border: 1px solid #555;
+  border-radius: 6px;
+}
+.range-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.range-value {
+  font-family: 'B612 Mono', monospace;
+  font-size: 15px;
+  color: var(--cyan);
+  min-width: 4.5em;
+  text-align: center;
+  text-shadow: 0 0 3px #000;
+}
+.strip {
+  border-top: 1px solid var(--line);
+  padding: 8px 12px 10px;
+  font-family: 'B612 Mono', monospace;
+  font-size: 14px;
+}
+.strip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 24px;
+}
+.strip-main {
+  font-size: 16px;
+}
+.strip-back {
+  background: none;
+  border: 0;
+  color: var(--cyan);
+  font-size: 24px;
+  padding: 0 6px 0 0;
+  min-width: 32px;
+  min-height: 40px;
+}
+.strip-cs {
+  color: var(--white);
+  font-weight: 700;
+}
+.strip-type {
+  color: var(--grey);
+}
+.strip-route,
+.strip-alt,
+.strip-status {
+  color: var(--green);
+}
+.strip-alt {
+  margin-left: auto;
+}
+.strip-status {
+  margin-left: auto;
+}
+.strip-note {
+  color: var(--grey);
+  font-size: 13px;
+}
+.badge {
+  font-size: 12px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+.badge-green {
+  color: var(--green);
+}
+.badge-cyan {
+  color: var(--cyan);
+}
+.badge-amber {
+  color: var(--amber);
+}
+.banner {
+  color: var(--amber);
+}
+.strip .attribution {
+  margin-top: 2px;
+}
+
+@media (orientation: landscape) and (min-width: 600px) {
+  .nd-screen {
+    flex-direction: row;
+  }
+  .strip {
+    width: 300px;
+    flex: none;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    overflow-y: auto;
+  }
+  .strip-row {
+    margin-bottom: 6px;
+  }
+}
