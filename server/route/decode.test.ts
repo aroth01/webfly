@@ -11,6 +11,8 @@ const data: NavDataFile = {
     { id: 'AAA', icao: 'KAAA', name: 'ORIGIN', lat: 30.0, lon: -100.0, rwyFt: 10000, pub: true },
     { id: 'BBB', icao: 'KBBB', name: 'DEST', lat: 30.0, lon: -90.0, rwyFt: 10000, pub: true },
     { id: 'CCC', name: 'BESIDE J1', lat: 30.05, lon: -97.0, rwyFt: 6000, pub: true },
+    { id: 'AAX', icao: 'KAAX', name: 'NEAR ORIGIN', lat: 30.2, lon: -100.0, rwyFt: 5000, pub: true },
+    { id: 'BBX', icao: 'KBBX', name: 'NEAR DEST', lat: 30.2, lon: -90.0, rwyFt: 5000, pub: true },
   ],
   navaids: [
     { id: 'VRA', type: 'VORTAC', name: 'ALPHA', lat: 30.0, lon: -98.0, varDeg: 5 },
@@ -38,6 +40,8 @@ const data: NavDataFile = {
   procs: [
     { name: 'DEPRT1', kind: 'SID', airports: ['AAA'], body: ['SIDFX'], transitions: { VRA: ['SIDFX', 'TFIX1', 'VRA'] } },
     { name: 'ARRVL2', kind: 'STAR', airports: ['BBB'], body: ['STRFX', 'FINAL'], transitions: { VRB: ['VRB', 'STRT1', 'STRFX'] } },
+    // Shares the STAR's base name, like the real MLB8 (SID) and MLB3 (STAR).
+    { name: 'ARRVL8', kind: 'SID', airports: ['AAA'], body: ['SIDFX'], transitions: {} },
   ],
   prefRoutes: [],
 };
@@ -78,6 +82,30 @@ describe('decodeRoute', () => {
     const r = decodeRoute('KAAA.DEPRT2.VRA..KBBB', db);
     expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'SIDFX', 'TFIX1', 'VRA', 'KBBB']);
     expect(r.points[1]?.via).toBe('DEPRT1');
+  });
+
+  it('prefers an exact STAR name over another version of a SID with the same base name', () => {
+    const r = decodeRoute('KAAA VRA J1 VRB ARRVL2 KBBB', db);
+    expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'VRA', 'WPT1', 'WPT2', 'VRB', 'STRT1', 'STRFX', 'FINAL', 'KBBB']);
+    expect(r.partial).toBe(false);
+  });
+
+  it('does not expand a SID that does not serve the origin', () => {
+    const r = decodeRoute('KAAX DEPRT1 VRA J1 VRB KBBB', db);
+    expect(r.points.map((p) => p.ident)).toEqual(['KAAX', 'VRA', 'WPT1', 'WPT2', 'VRB', 'KBBB']);
+    expect(r.unresolved).toEqual(['DEPRT1']);
+    expect(r.partial).toBe(true);
+    expect(decodeRoute('DEPRT1 VRA J1 VRB', db, { origin: 'KAAX', dest: 'KBBB' }).unresolved).toEqual(['DEPRT1']);
+    expect(decodeRoute('DEPRT1 VRA J1 VRB', db, { origin: 'AAA', dest: 'KBBB' }).unresolved).toEqual([]);
+  });
+
+  it('does not expand a STAR that does not serve the destination', () => {
+    const r = decodeRoute('KAAA VRA J1 VRB ARRVL2 KBBX', db);
+    expect(r.points.map((p) => p.ident)).toEqual(['KAAA', 'VRA', 'WPT1', 'WPT2', 'VRB', 'KBBX']);
+    expect(r.unresolved).toEqual(['ARRVL2']);
+    expect(r.partial).toBe(true);
+    expect(decodeRoute('VRA J1 VRB ARRVL2', db, { origin: 'KAAA', dest: 'KBBX' }).unresolved).toEqual(['ARRVL2']);
+    expect(decodeRoute('VRA J1 VRB ARRVL2', db, { origin: 'KAAA', dest: 'BBB' }).unresolved).toEqual([]);
   });
 
   it('computes fix-radial-distance points from the magnetic radial', () => {

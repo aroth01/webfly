@@ -8,8 +8,12 @@ export interface PointHit {
   kind: 'fix' | 'navaid' | 'airport';
 }
 
-/** Procedure names end in a version digit; the base name lets "AKUNA8" find the current "AKUNA9". */
-const baseName = (name: string) => name.replace(/\d+$/, '');
+/**
+ * A procedure computer code: a 3-5 letter name plus one version digit. Stripping the digit lets an outdated
+ * "AKUNA8" find the current "AKUNA9". Other shapes (SIDs like "O431", radials like "DPK282") get no fallback.
+ */
+const VERSIONED_RE = /^[A-Z]{3,5}\d$/;
+const baseName = (name: string) => (VERSIONED_RE.test(name) ? name.slice(0, -1) : undefined);
 
 function nearest<T extends LatLon>(items: T[], ref?: LatLon): T | undefined {
   if (items.length <= 1 || !ref) return items[0];
@@ -54,7 +58,8 @@ export class NavDb {
     }
     for (const p of data.procs) {
       this.procs[p.kind].set(p.name, p);
-      this.procsByBase[p.kind].set(baseName(p.name), p);
+      const base = baseName(p.name);
+      if (base) this.procsByBase[p.kind].set(base, p);
     }
     for (const r of data.prefRoutes) {
       const key = `${r.orig}-${r.dest}`;
@@ -91,10 +96,17 @@ export class NavDb {
     return this.airways.get(id);
   }
 
-  /** Exact procedure name, else the same procedure with a different version digit. */
-  procedure(token: string, kind: 'SID' | 'STAR'): ProcRec | undefined {
-    if (!/\d$/.test(token)) return undefined;
-    return this.procs[kind].get(token) ?? this.procsByBase[kind].get(baseName(token));
+  /**
+   * Procedures this token may name, best first: the exact SID and STAR names; only if neither exists, the
+   * SID and STAR with the same base name and another version digit. The caller picks the one that serves
+   * its airports.
+   */
+  procedures(token: string): ProcRec[] {
+    const exact = [this.procs.SID.get(token), this.procs.STAR.get(token)].filter((p) => p !== undefined);
+    if (exact.length > 0) return exact;
+    const base = baseName(token);
+    if (!base) return [];
+    return [this.procsByBase.SID.get(base), this.procsByBase.STAR.get(base)].filter((p) => p !== undefined);
   }
 
   prefRoutes(orig: string, dest: string): PrefRouteRec[] {

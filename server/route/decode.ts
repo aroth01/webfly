@@ -70,6 +70,10 @@ export function decodeRoute(text: string, db: NavDb, opts: DecodeOptions = {}): 
     return a ? { ident: id, lat: a.lat, lon: a.lon, kind: 'airport' } : undefined;
   };
   const sameAirport = (a: string | undefined, b: string) => a !== undefined && db.airport(a) !== undefined && db.airport(a) === db.airport(b);
+  // FAA ids of the airports SIDs and STARs must serve: from the options, else the route's own end tokens.
+  const airportId = (id: string | undefined) => (id ? db.airport(id)?.id : undefined);
+  const originId = airportId(opts.origin || tokens[0]);
+  const destId = airportId(opts.dest || tokens[tokens.length - 1]);
 
   if (opts.origin && !sameAirport(tokens[0], opts.origin)) add(airportPoint(opts.origin));
 
@@ -147,20 +151,24 @@ export function decodeRoute(text: string, db: NavDb, opts: DecodeOptions = {}): 
     const radial = RADIAL_RE.exec(tok);
     if (radial && db.navaid(radial[1] as string)) continue;
 
-    const sid = db.procedure(tok, 'SID');
-    if (sid) {
-      addAll(sid.body, sid.name);
-      const trans = next ? sid.transitions[next] : undefined;
-      if (trans) addAll(trans, sid.name);
-      continue;
-    }
-
-    const star = db.procedure(tok, 'STAR');
-    if (star) {
-      const entry = last()?.ident;
-      const trans = entry ? star.transitions[entry] : undefined;
-      if (trans) addAll(trans, star.name);
-      addAll(star.body, star.name);
+    const procs = db.procedures(tok);
+    if (procs.length > 0) {
+      // A SID must serve the origin and a STAR the destination; otherwise the name matched someone else's procedure.
+      const proc = procs.find((p) => {
+        const apt = p.kind === 'SID' ? originId : destId;
+        return p.airports.length === 0 || apt === undefined || p.airports.includes(apt);
+      });
+      if (!proc) unresolved.push(tok);
+      else if (proc.kind === 'SID') {
+        addAll(proc.body, proc.name);
+        const trans = next ? proc.transitions[next] : undefined;
+        if (trans) addAll(trans, proc.name);
+      } else {
+        const entry = last()?.ident;
+        const trans = entry ? proc.transitions[entry] : undefined;
+        if (trans) addAll(trans, proc.name);
+        addAll(proc.body, proc.name);
+      }
       continue;
     }
 

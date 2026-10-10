@@ -34,7 +34,7 @@ export interface AirwayRec {
 export interface ProcRec {
   name: string; // "AKUNA9" (SID) or "ANJLL4" (STAR)
   kind: 'SID' | 'STAR';
-  airports: string[]; // FAA ids served
+  airports: string[]; // FAA ids served (a SID's origins, a STAR's destinations); empty if NASR lists none
   body: string[]; // runway-independent part of the body, in flight order
   transitions: Record<string, string[]>; // transition fix -> points in flight order
 }

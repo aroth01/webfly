@@ -14,7 +14,16 @@ const data: NavDataFile = {
     { id: 'J1', loc: 'A', pts: ['X', 'Y'] },
     { id: 'J1', loc: 'C', pts: ['P', 'Q'] },
   ],
-  procs: [{ name: 'AKUNA9', kind: 'SID', airports: ['DFW'], body: ['AKUNA'], transitions: {} }],
+  procs: [
+    { name: 'AKUNA9', kind: 'SID', airports: ['DFW'], body: ['AKUNA'], transitions: {} },
+    // Real cycle quirks: SIDs named like airways/one-letter bases, and SID/STAR pairs sharing a base or a name.
+    { name: 'O431', kind: 'SID', airports: ['O43'], body: ['FABLO'], transitions: {} },
+    { name: 'DPK3', kind: 'SID', airports: ['FRG'], body: ['DPK'], transitions: {} },
+    { name: 'MLB8', kind: 'SID', airports: ['MLB'], body: ['CAPEN'], transitions: {} },
+    { name: 'MLB3', kind: 'STAR', airports: ['BCT'], body: ['MLB', 'RASAE', 'PBI'], transitions: {} },
+    { name: 'NUTIY1', kind: 'SID', airports: ['ORF'], body: ['NUTIY'], transitions: {} },
+    { name: 'NUTIY1', kind: 'STAR', airports: [], body: ['NUTIY'], transitions: {} },
+  ],
   prefRoutes: [{ orig: 'DFW', dest: 'ORD', type: 'H', route: 'DFW AKUNA9 MLC ORD' }],
 };
 const db = new NavDb(data);
@@ -42,11 +51,27 @@ describe('NavDb', () => {
     expect(db.airway('J1')?.pts).toEqual(['P', 'Q']);
   });
 
-  it('finds procedures by exact name or by base name with another version', () => {
-    expect(db.procedure('AKUNA9', 'SID')?.name).toBe('AKUNA9');
-    expect(db.procedure('AKUNA8', 'SID')?.name).toBe('AKUNA9');
-    expect(db.procedure('AKUNA', 'SID')).toBeUndefined();
-    expect(db.procedure('AKUNA9', 'STAR')).toBeUndefined();
+  const procs = (token: string) => db.procedures(token).map((p) => `${p.kind}:${p.name}`);
+
+  it('finds procedures by exact name, else by an outdated version digit', () => {
+    expect(procs('AKUNA9')).toEqual(['SID:AKUNA9']);
+    expect(procs('AKUNA8')).toEqual(['SID:AKUNA9']);
+    expect(procs('AKUNA')).toEqual([]);
+    expect(procs('AKUNA10')).toEqual([]);
+    expect(procs('O431')).toEqual(['SID:O431']);
+  });
+
+  it('falls back only for 3-5 letter names plus one digit', () => {
+    expect(procs('O12')).toEqual([]); // not SID O431 via a one-letter base "O"
+    expect(procs('O4')).toEqual([]);
+    expect(procs('DPK282')).toEqual([]); // a radial token, not SID DPK3
+    expect(procs('DPK2')).toEqual(['SID:DPK3']);
+  });
+
+  it('lists exact SID and STAR matches before any other-version match', () => {
+    expect(procs('MLB3')).toEqual(['STAR:MLB3']); // not SID MLB8
+    expect(procs('MLB5')).toEqual(['SID:MLB8', 'STAR:MLB3']);
+    expect(procs('NUTIY1')).toEqual(['SID:NUTIY1', 'STAR:NUTIY1']);
   });
 
   it('looks up preferred routes by airport pair', () => {
